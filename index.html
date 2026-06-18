@@ -356,19 +356,24 @@ body.is-admin .admin-only{display:inline-flex !important}
     <div class="dbody">
       <div id="users-list"></div>
       <div style="border-top:1px solid var(--border);margin:14px 0 10px"></div>
-      <label class="field"><span>New username</span><input type="text" id="nu-user" autocomplete="off"/></label>
-      <label class="field"><span>New password</span>
+      <div id="nu-mode-label" style="font-size:12px;color:#fbbf24;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Add User</div>
+      <label class="field"><span>Username</span><input type="text" id="nu-user" autocomplete="off"/></label>
+      <label class="field"><span>Password</span>
         <div style="display:flex;gap:6px"><input type="text" id="nu-pass" style="flex:1"/><button type="button" class="btn ghost" onclick="genPass()">Generate</button></div>
       </label>
       <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
-        <div style="font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Module Permissions</div>
-        <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer">
-          <input type="checkbox" id="nu-full" onchange="toggleFullAccess(this)"/> <b>Full Access (all modules, all actions)</b>
-        </label>
-        <div id="nu-perms-grid" style="display:grid;gap:6px"></div>
+        <button type="button" id="ap-toggle" onclick="toggleAccessPanel()" style="width:100%;display:flex;justify-content:space-between;align-items:center;background:var(--secondary);border:1px solid var(--border);color:var(--fg);padding:10px 12px;border-radius:10px;font-weight:700;cursor:pointer;font-size:13px">
+          <span>🔐 Access Permissions <span id="ap-summary" style="color:var(--muted);font-weight:500;font-size:11px;margin-left:6px">— no modules selected</span></span><span id="ap-caret">▾</span>
+        </button>
+        <div id="ap-panel" style="display:none;margin-top:8px;padding:10px;background:var(--secondary);border:1px solid var(--border);border-radius:10px">
+          <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer;font-weight:700"><input type="checkbox" id="nu-full" onchange="toggleFullAccessNew(this)"/> Full Access (all modules + all actions)</label>
+          <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;cursor:pointer;font-weight:600;color:#fbbf24"><input type="checkbox" id="nu-selectall" onchange="toggleSelectAllModules(this)"/> Select All Modules</label>
+          <div id="nu-perms-grid" style="display:flex;flex-direction:column;gap:4px"></div>
+          <div style="font-size:10px;color:var(--muted);margin-top:8px;line-height:1.4">Tip: tick a module to grant access, then pick the actions. "Full" auto-selects View/Add/Edit/Delete.</div>
+        </div>
       </div>
     </div>
-    <div class="dfoot"><button class="btn ghost" onclick="closeUsers()">Close</button><button class="btn" onclick="addUser()">Add user</button></div>
+    <div class="dfoot"><button class="btn ghost" onclick="closeUsers()">Close</button><button class="btn" id="nu-submit-btn" onclick="addUser()">Add user</button></div>
   </div>
 </div>
 
@@ -648,14 +653,14 @@ body.is-admin .admin-only{display:inline-flex !important}
 
 <!-- Add Project modal -->
 <div class="modal" id="m-addproj"><div class="backdrop" onclick="closeAddProject()"></div>
-  <div class="dialog"><div class="dhead"><div><h2>Add Project</h2><div class="sub">Adds to Project Details & Inspection Records</div></div>
+  <div class="dialog"><div class="dhead"><div><h2 id="ap-proj-title">Add Project</h2><div class="sub">Adds to Project Details & Inspection Records</div></div>
     <button class="iconbtn" style="margin-left:auto" onclick="closeAddProject()">✕</button></div>
     <div class="dbody">
       <label class="field"><span>Client name</span><input type="text" id="ap-client"/></label>
       <label class="field"><span>Location</span><input type="text" id="ap-location"/></label>
       <label class="field"><span>System capacity (kW)</span><input type="text" id="ap-cap" placeholder="e.g. 10"/></label>
     </div>
-    <div class="dfoot"><button class="btn ghost" onclick="closeAddProject()">Cancel</button><button class="btn" onclick="doAddProject()">Add</button></div>
+    <div class="dfoot"><button class="btn ghost" onclick="closeAddProject()">Cancel</button><button class="btn" id="ap-proj-save" onclick="doAddProject()">Add</button></div>
   </div>
 </div>
 
@@ -2223,6 +2228,298 @@ refreshNotifDot();
   if(document.readyState==='loading'){
     document.addEventListener('DOMContentLoaded', ()=>setTimeout(init,300));
   } else { setTimeout(init,300); }
+})();
+</script>
+
+
+<script>
+/* ============ TRACKER_12: User edit, Project edit, Compact permissions, Logout, Faster sync ============ */
+(function(){
+  const UKEY='solar-users-v1', PKEY='solar-projects-v1';
+  const MODS = (window.SOLAR_MODULES) || [
+    {k:'team',name:'Scope Solar Management'},{k:'projects',name:'Project Details'},
+    {k:'plan',name:'Daily Plan'},{k:'inspectplan',name:'Daily Inspection'},
+    {k:'inspections',name:'Inspection Records'},{k:'complaints',name:'Complaints'},
+    {k:'accounts',name:'Accounts'}
+  ];
+  const ACTIONS = [
+    {v:'view',l:'View'},{v:'add',l:'Add'},{v:'edit',l:'Edit'},{v:'delete',l:'Delete'},{v:'full',l:'Full'}
+  ];
+  let editingUserIdx = -1; // -1 = add mode
+
+  /* ----- Compact permissions UI ----- */
+  function buildPermsGridV2(perms){
+    const g = document.getElementById('nu-perms-grid'); if(!g) return;
+    perms = perms || {};
+    g.innerHTML = MODS.map(m=>{
+      const cur = perms[m.k] || 'none';
+      const enabled = cur && cur!=='none';
+      return `
+      <div class="nu-mod-row" data-mod="${m.k}" style="border:1px solid var(--border);border-radius:8px;padding:8px;background:rgba(255,255,255,.02)">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;font-size:13px">
+          <input type="checkbox" class="nu-mod-en" ${enabled?'checked':''}/> ${m.name}
+        </label>
+        <div class="nu-mod-actions" style="display:${enabled?'flex':'none'};flex-wrap:wrap;gap:6px;margin-top:6px;padding-left:22px">
+          ${ACTIONS.map(a=>`<label style="display:flex;align-items:center;gap:3px;font-size:11px;background:var(--navy2);padding:3px 7px;border-radius:6px;cursor:pointer"><input type="radio" name="act-${m.k}" value="${a.v}" ${cur===a.v?'checked':(cur==='view'&&a.v==='view'?'checked':'')}/> ${a.l}</label>`).join('')}
+        </div>
+      </div>`;
+    }).join('');
+    // Default: if enabled but no radio selected → view
+    g.querySelectorAll('.nu-mod-row').forEach(row=>{
+      const mod = row.dataset.mod;
+      const radios = row.querySelectorAll('input[type=radio]');
+      const any = Array.from(radios).some(r=>r.checked);
+      if(!any && row.querySelector('.nu-mod-en').checked){
+        const v = radios[0]; if(v) v.checked = true;
+      }
+    });
+    // Toggle behavior
+    g.querySelectorAll('.nu-mod-en').forEach(cb=>{
+      cb.addEventListener('change', ()=>{
+        const row = cb.closest('.nu-mod-row');
+        const act = row.querySelector('.nu-mod-actions');
+        act.style.display = cb.checked ? 'flex' : 'none';
+        if(cb.checked){
+          const any = row.querySelectorAll('input[type=radio]:checked').length;
+          if(!any) row.querySelector('input[type=radio]').checked = true;
+        }
+        updateApSummary();
+      });
+    });
+    g.querySelectorAll('input[type=radio]').forEach(r=> r.addEventListener('change', updateApSummary));
+    updateApSummary();
+  }
+  function readPermsV2(){
+    const out = {};
+    const full = document.getElementById('nu-full');
+    if(full && full.checked){ MODS.forEach(m=>out[m.k]='full'); return out; }
+    document.querySelectorAll('.nu-mod-row').forEach(row=>{
+      const mod = row.dataset.mod;
+      const en = row.querySelector('.nu-mod-en').checked;
+      if(!en){ out[mod]='none'; return; }
+      const sel = row.querySelector('input[type=radio]:checked');
+      out[mod] = sel ? sel.value : 'view';
+    });
+    return out;
+  }
+  function updateApSummary(){
+    const el = document.getElementById('ap-summary'); if(!el) return;
+    const full = document.getElementById('nu-full');
+    if(full && full.checked){ el.textContent = '— Full access'; return; }
+    let n=0; document.querySelectorAll('.nu-mod-en').forEach(c=>{if(c.checked)n++;});
+    el.textContent = n ? `— ${n} module${n>1?'s':''} selected` : '— no modules selected';
+  }
+  window.toggleAccessPanel = function(){
+    const p=document.getElementById('ap-panel'), c=document.getElementById('ap-caret');
+    const open = p.style.display==='none';
+    p.style.display = open?'block':'none'; if(c) c.textContent = open?'▴':'▾';
+  };
+  window.toggleFullAccessNew = function(cb){
+    document.querySelectorAll('.nu-mod-row').forEach(row=>{
+      const en = row.querySelector('.nu-mod-en'); en.checked = cb.checked; en.disabled = cb.checked;
+      row.querySelector('.nu-mod-actions').style.display = cb.checked?'flex':'none';
+      row.querySelectorAll('input[type=radio]').forEach(r=>{ r.disabled = cb.checked; r.checked = (r.value==='full'); });
+    });
+    const sa = document.getElementById('nu-selectall'); if(sa){ sa.checked = cb.checked; sa.disabled = cb.checked; }
+    updateApSummary();
+  };
+  window.toggleSelectAllModules = function(cb){
+    document.querySelectorAll('.nu-mod-row').forEach(row=>{
+      row.querySelector('.nu-mod-en').checked = cb.checked;
+      row.querySelector('.nu-mod-actions').style.display = cb.checked?'flex':'none';
+      if(cb.checked){
+        const any = row.querySelectorAll('input[type=radio]:checked').length;
+        if(!any) row.querySelector('input[type=radio]').checked = true;
+      }
+    });
+    updateApSummary();
+  };
+  // Back-compat: original toggleFullAccess hook (legacy) -> route to new
+  window.toggleFullAccess = window.toggleFullAccessNew;
+
+  /* ----- Users list with Edit + Delete ----- */
+  function getUsersArr(){ try{return JSON.parse(localStorage.getItem(UKEY))||[];}catch(e){return [];} }
+  function setUsersArr(a){ localStorage.setItem(UKEY, JSON.stringify(a)); }
+
+  window.renderUsers = function(){
+    const list = document.getElementById('users-list'); if(!list) return;
+    const u = getUsersArr();
+    let html = `<div class="user-row"><div class="u">scopesolar <span style="color:#fbbf24;font-size:10px">(master)</span><div class="p">••••••</div></div></div>`;
+    html += u.map((x,i)=>{
+      const perms = x.perms||{}; const mods = Object.keys(perms).filter(k=>perms[k]&&perms[k]!=='none').length;
+      return `<div class="user-row"><div class="u">${escapeHtml(x.user)}<div class="p" style="color:var(--muted);font-size:11px">${mods} module${mods!==1?'s':''} · pwd: ${escapeHtml(x.pass||'')}</div></div>
+        <button class="iconbtn" title="Edit" onclick="editUserStart(${i})">✏️</button>
+        <button class="iconbtn" title="Remove" onclick="rmUser(${i})">🗑</button></div>`;
+    }).join('');
+    if(!u.length) html += `<div class="sub" style="text-align:center;padding:6px">No additional users yet</div>`;
+    list.innerHTML = html;
+  };
+  window.rmUser = function(i){
+    if(!confirm('Remove this user?')) return;
+    const a=getUsersArr(); a.splice(i,1); setUsersArr(a); renderUsers(); forceSync();
+  };
+  window.editUserStart = function(i){
+    const u = getUsersArr()[i]; if(!u) return;
+    editingUserIdx = i;
+    document.getElementById('nu-mode-label').textContent = 'Edit User: '+u.user;
+    document.getElementById('nu-user').value = u.user;
+    document.getElementById('nu-pass').value = u.pass||'';
+    const full = document.getElementById('nu-full'); if(full){ full.checked = false; full.disabled=false; }
+    const sa = document.getElementById('nu-selectall'); if(sa){ sa.checked=false; sa.disabled=false; }
+    buildPermsGridV2(u.perms||{});
+    document.getElementById('nu-submit-btn').textContent = 'Save changes';
+    document.getElementById('ap-panel').style.display='block';
+    document.getElementById('ap-caret').textContent='▴';
+    document.getElementById('nu-user').focus();
+  };
+  function resetUserForm(){
+    editingUserIdx = -1;
+    document.getElementById('nu-mode-label').textContent = 'Add User';
+    document.getElementById('nu-user').value='';
+    document.getElementById('nu-pass').value='';
+    const full=document.getElementById('nu-full'); if(full){ full.checked=false; full.disabled=false;}
+    const sa=document.getElementById('nu-selectall'); if(sa){ sa.checked=false; sa.disabled=false;}
+    buildPermsGridV2({});
+    const btn=document.getElementById('nu-submit-btn'); if(btn) btn.textContent='Add user';
+  }
+
+  /* ----- Override addUser (save: add or edit) ----- */
+  window.addUser = function(){
+    const u=(document.getElementById('nu-user').value||'').trim();
+    const p=(document.getElementById('nu-pass').value||'').trim();
+    if(!u||!p){ alert('Enter username and password'); return; }
+    const arr = getUsersArr();
+    if(editingUserIdx>=0){
+      if(u==='scopesolar' || arr.some((x,i)=>i!==editingUserIdx && x.user===u)){ alert('Username already exists'); return; }
+      arr[editingUserIdx] = { user:u, pass:p, perms: readPermsV2() };
+    } else {
+      if(u==='scopesolar' || arr.some(x=>x.user===u)){ alert('Username already exists'); return; }
+      arr.push({ user:u, pass:p, perms: readPermsV2() });
+    }
+    setUsersArr(arr);
+    resetUserForm();
+    renderUsers();
+    if(typeof renderHome==='function') renderHome();
+    forceSync();
+  };
+
+  /* ----- Open users hook: build new grid each time ----- */
+  const _origOpenUsers = window.openUsers;
+  window.openUsers = function(){
+    _origOpenUsers && _origOpenUsers.apply(this, arguments);
+    resetUserForm();
+  };
+
+  /* ----- Project Edit ----- */
+  let editingProjSr = null;
+  window.openEditProject = function(sr, ev){
+    if(ev){ ev.stopPropagation(); ev.preventDefault(); }
+    const list = JSON.parse(localStorage.getItem(PKEY)||'[]');
+    const p = list.find(x=>Number(x.sr)===Number(sr)); if(!p){ alert('Project not found'); return; }
+    editingProjSr = Number(sr);
+    document.getElementById('ap-proj-title').textContent = 'Edit Project #'+p.sr;
+    document.getElementById('ap-proj-save').textContent = 'Save changes';
+    document.getElementById('ap-client').value = p.client||'';
+    document.getElementById('ap-location').value = p.location||'';
+    document.getElementById('ap-cap').value = p.capacity||'';
+    document.getElementById('m-addproj').classList.add('open');
+  };
+  // Wrap openAddProject to reset edit mode
+  const _origOpenAdd = window.openAddProject;
+  window.openAddProject = function(){
+    editingProjSr = null;
+    document.getElementById('ap-proj-title').textContent = 'Add Project';
+    document.getElementById('ap-proj-save').textContent = 'Add';
+    _origOpenAdd && _origOpenAdd.apply(this, arguments);
+  };
+  // Override doAddProject to handle edit
+  window.doAddProject = function(){
+    const client=(document.getElementById('ap-client').value||'').trim();
+    const location=(document.getElementById('ap-location').value||'').trim();
+    const capacity=(document.getElementById('ap-cap').value||'').trim()||'-';
+    if(!client||!location){ alert('Client and location are required'); return; }
+    const arr = JSON.parse(localStorage.getItem(PKEY)||'[]');
+    if(editingProjSr!=null){
+      const i = arr.findIndex(p=>Number(p.sr)===editingProjSr);
+      if(i<0){ alert('Project missing'); return; }
+      const oldLoc = arr[i].location;
+      arr[i] = { ...arr[i], client, location, capacity };
+      localStorage.setItem(PKEY, JSON.stringify(arr));
+      // Update related inspection site name if location changed
+      if(oldLoc && oldLoc!==location){
+        try{
+          const SKEY='solar-inspection-sites-v1';
+          const sites = JSON.parse(localStorage.getItem(SKEY)||'[]');
+          sites.forEach(s=>{ if((s.name||'').trim().toLowerCase()===oldLoc.trim().toLowerCase()) s.name = location; });
+          localStorage.setItem(SKEY, JSON.stringify(sites));
+        }catch(_){}
+      }
+    } else {
+      const sr = (arr.reduce((m,p)=>Math.max(m,Number(p.sr)||0),0))+1;
+      arr.push({sr, client, location, capacity});
+      localStorage.setItem(PKEY, JSON.stringify(arr));
+      if(typeof syncSitesWithProjects==='function') syncSitesWithProjects();
+    }
+    editingProjSr = null;
+    document.getElementById('m-addproj').classList.remove('open');
+    if(typeof renderProjects==='function') renderProjects();
+    if(typeof render==='function') render();
+    forceSync();
+  };
+
+  /* ----- Inject Edit button on project cards (wrap renderProjects) ----- */
+  const _origRenderProjects = window.renderProjects;
+  if(_origRenderProjects){
+    window.renderProjects = function(){
+      _origRenderProjects.apply(this, arguments);
+      const grid = document.getElementById('pj-grid'); if(!grid) return;
+      grid.querySelectorAll('.pcard').forEach(card=>{
+        if(card.querySelector('.edit-proj-btn')) return;
+        const srMatch = (card.querySelector('.sr')||{}).textContent||'';
+        const sr = Number(srMatch.replace(/[^\d]/g,''));
+        if(!sr) return;
+        const btn = document.createElement('button');
+        btn.className = 'btn edit-proj-btn';
+        btn.style.cssText = 'position:absolute;top:8px;right:42px;padding:4px 8px;font-size:11px;background:#fbbf24;color:#1a1208';
+        btn.title = 'Edit project';
+        btn.textContent = '✏️';
+        btn.onclick = (e)=> window.openEditProject(sr, e);
+        card.appendChild(btn);
+      });
+    };
+  }
+
+  /* ----- Faster cloud sync: force pull+push on user/project change ----- */
+  function forceSync(){
+    try{
+      // Trigger the wrapped localStorage.setItem push (already debounced)
+      // Plus pull again soon so this device receives any concurrent updates
+      setTimeout(()=>{ try{
+        fetch((window.__API_BASE||'') + '/api/public/jsonblob', {cache:'no-store'}).catch(()=>{});
+      }catch(_){} }, 600);
+    }catch(_){}
+  }
+  window.__forceSync = forceSync;
+
+  /* ----- Ensure sidebar logout visible (defensive) ----- */
+  function ensureLogout(){
+    const sb = document.getElementById('sidebar'); if(!sb) return;
+    if(sb.querySelector('[data-logout-btn]')) return;
+    if([...sb.querySelectorAll('button')].some(b=>/logout/i.test(b.textContent))) return;
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'padding:8px 12px;border-top:1px solid var(--border);margin-top:auto';
+    wrap.innerHTML = `<button class="sb-link" data-logout-btn onclick="doLogout()" style="color:#fca5a5;width:100%"><span class="ic">⎋</span>Logout</button>`;
+    sb.appendChild(wrap);
+  }
+
+  /* ----- Boot ----- */
+  function init(){
+    try{ ensureLogout(); }catch(_){}
+    try{ buildPermsGridV2({}); }catch(_){}
+    try{ renderUsers(); }catch(_){}
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', ()=>setTimeout(init,400));
+  else setTimeout(init,400);
 })();
 </script>
 
