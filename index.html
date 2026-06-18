@@ -228,11 +228,12 @@ textarea{min-height:90px;resize:vertical}
     <h1>SCOPE SOLAR</h1>
     <div class="sub">Inspection Tracker · 9 visits over 24 months</div>
   </div>
-  <div class="stats">
-    <div class="stat">Sites <b id="st-sites">0</b></div>
-    <div class="stat s">Done <b id="st-done">0</b></div>
-    <div class="stat d">Overdue <b id="st-pend">0</b></div>
-  </div>
+   <div class="stats">
+     <div class="stat">Sites <b id="st-sites">0</b></div>
+     <div class="stat s">Done <b id="st-done">0</b></div>
+     <div class="stat d">Overdue <b id="st-pend">0</b></div>
+     <div class="stat" id="topbar-user" style="display:none">👤 <b id="topbar-username" style="color:#fbbf24"></b></div>
+   </div>
 </div></header>
 
 <nav class="tabs" id="tabs">
@@ -471,6 +472,81 @@ textarea{min-height:90px;resize:vertical}
 </div>
 
 <script>
+/* ===== Cloud sync (shared across all devices) =====
+   Mirrors selected localStorage keys to a public JSON blob so admin-added
+   users, projects, sites, plans, complaints, messages, etc. show up
+   automatically on every device. */
+(function(){
+  const BLOB_ID = "019edb6d-aa19-7514-b63e-3935c4faae04";
+  const BLOB_URL = "https://jsonblob.com/api/jsonBlob/" + BLOB_ID;
+  const SYNC_KEYS = [
+    "solar-inspection-sites-v1",
+    "solar-users-v1",
+    "solar-projects-v1",
+    "solar-complaints-v1",
+    "solar-plans-v1",
+    "solar-inspectplans-v1",
+    "solar-team-msgs-v1",
+    "solar-notifs-v1"
+  ];
+  let lastPushed = "";
+  let pushTimer = null;
+  let suppress = false;
+  const origSet = localStorage.setItem.bind(localStorage);
+  localStorage.setItem = function(k,v){
+    origSet(k,v);
+    if(!suppress && SYNC_KEYS.indexOf(k)!==-1) schedulePush();
+  };
+  function snapshot(){
+    const out = {};
+    SYNC_KEYS.forEach(k=>{ const v=localStorage.getItem(k); if(v!=null) out[k]=v; });
+    return out;
+  }
+  function schedulePush(){
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(pushNow, 600);
+  }
+  async function pushNow(){
+    try{
+      const data = { keys: snapshot(), updatedAt: Date.now() };
+      const body = JSON.stringify(data);
+      if(body === lastPushed) return;
+      lastPushed = body;
+      await fetch(BLOB_URL, {method:"PUT", headers:{"Content-Type":"application/json"}, body});
+    }catch(e){ console.warn("sync push failed", e); }
+  }
+  function applyRemote(remoteKeys){
+    let changed = false;
+    suppress = true;
+    try{
+      SYNC_KEYS.forEach(k=>{
+        const rv = remoteKeys[k];
+        const lv = localStorage.getItem(k);
+        if(rv != null && rv !== lv){ origSet(k, rv); changed = true; }
+      });
+    } finally { suppress = false; }
+    return changed;
+  }
+  async function pullNow(){
+    try{
+      const r = await fetch(BLOB_URL, {cache:"no-store"});
+      if(!r.ok) return;
+      const j = await r.json();
+      if(!j || !j.keys) return;
+      const changed = applyRemote(j.keys);
+      lastPushed = JSON.stringify({ keys: snapshot(), updatedAt: j.updatedAt||0 });
+      if(changed){
+        const ae = document.activeElement;
+        const typing = ae && (ae.tagName==="INPUT" || ae.tagName==="TEXTAREA");
+        if(!typing) location.reload();
+      }
+    }catch(e){ /* offline ok */ }
+  }
+  // Initial pull so login sees latest users on this device
+  window.__cloudSyncReady = pullNow();
+  setInterval(pullNow, 4000);
+})();
+
 const MONTHS = [1,3,6,9,12,15,18,21,24];
 const LABELS = ["1st","3rd","6th","9th","12th","15th","18th","21st","24th"];
 const KEY = "solar-inspection-sites-v1";
@@ -668,21 +744,33 @@ function getUsers(){try{return JSON.parse(localStorage.getItem(UKEY))||[];}catch
 function saveUsers(u){localStorage.setItem(UKEY,JSON.stringify(u));}
 function isAuthed(){return sessionStorage.getItem(SKEY)==="1";}
 function setAuthed(v){if(v)sessionStorage.setItem(SKEY,"1");else sessionStorage.removeItem(SKEY);}
-function doLogin(e){
+function showUserBadge(){
+  const name = sessionStorage.getItem("solar-user-name");
+  if(!name) return;
+  const box = document.getElementById("topbar-user");
+  const lbl = document.getElementById("topbar-username");
+  if(box && lbl){ lbl.textContent = name; box.style.display = ""; }
+}
+async function doLogin(e){
   e.preventDefault();
   const u=document.getElementById("li-user").value.trim();
   const p=document.getElementById("li-pass").value;
+  const errEl=document.getElementById("li-err");
+  errEl.textContent="Checking...";
+  // Make sure we have the latest user list from the cloud before validating
+  try{ await (window.__cloudSyncReady||Promise.resolve()); }catch(_){}
   const ok=(u===MASTER.user&&p===MASTER.pass)||getUsers().some(x=>x.user===u&&x.pass===p);
-  if(!ok){document.getElementById("li-err").textContent="Invalid username or password";return;}
+  if(!ok){errEl.textContent="Invalid username or password";return;}
   setAuthed(true);
   sessionStorage.setItem("solar-user-name", u);
   document.getElementById("login-overlay").style.display="none";
   document.getElementById("li-pass").value="";
-  document.getElementById("li-err").textContent="";
+  errEl.textContent="";
+  showUserBadge();
   render();
 }
 function currentUserName(){ return sessionStorage.getItem("solar-user-name") || "someone"; }
-function doLogout(){setAuthed(false);location.reload();}
+function doLogout(){setAuthed(false);sessionStorage.removeItem("solar-user-name");location.reload();}
 function openUsers(){renderUsers();document.getElementById("m-users").classList.add("open");}
 function closeUsers(){document.getElementById("m-users").classList.remove("open");}
 function renderUsers(){
@@ -706,15 +794,18 @@ function addUser(){
   const arr=getUsers();arr.push({user:u,pass:p});saveUsers(arr);
   document.getElementById("nu-user").value="";document.getElementById("nu-pass").value="";
   renderUsers();
+  alert("User added. They can now log in from any device.");
 }
 function rmUser(i){if(!confirm("Remove this user?"))return;const a=getUsers();a.splice(i,1);saveUsers(a);renderUsers();}
 
 if(isAuthed()){
   document.getElementById("login-overlay").style.display="none";
+  showUserBadge();
   render();
 }else{
   setTimeout(()=>document.getElementById("li-user").focus(),50);
 }
+
 
 
 /* ===== Project list (171 from Excel) ===== */
