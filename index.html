@@ -14,6 +14,15 @@
   --danger:#ef4444; --danger-bg:rgba(239,68,68,.18);
   --blank:#15294d; --secondary:#13294d;
 }
+@keyframes blinkPop{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(249,115,22,.7)}50%{transform:scale(1.08);box-shadow:0 0 0 8px rgba(249,115,22,0)}}
+.blink-pop{display:inline-block;margin-left:6px;background:linear-gradient(135deg,#f97316,#fbbf24);color:#1a1208;font-weight:800;font-size:10px;padding:2px 7px;border-radius:999px;animation:blinkPop 1.2s ease-in-out infinite}
+.notif-btn{position:relative}
+.notif-dot{position:absolute;top:2px;right:2px;background:#ef4444;color:#fff;font-size:10px;font-weight:700;min-width:16px;height:16px;border-radius:8px;display:none;align-items:center;justify-content:center;padding:0 4px}
+.notif-dot.on{display:inline-flex}
+.msg-row{background:var(--secondary);border:1px solid var(--border);border-radius:12px;padding:10px;margin-bottom:8px}
+.msg-by{font-weight:700;color:#fbbf24;font-size:12px}
+.msg-at{color:var(--muted);font-size:11px;margin-left:6px}
+.msg-text{margin-top:6px;white-space:pre-wrap;word-wrap:break-word}
 *{box-sizing:border-box}
 html,body{margin:0;background:linear-gradient(180deg,#06101f,#0a1730);color:var(--fg);font:14px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
 header{position:sticky;top:0;z-index:30;background:rgba(10,23,48,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
@@ -232,6 +241,7 @@ textarea{min-height:90px;resize:vertical}
   <button data-v="complaints">⚠ Complaints</button>
   <button data-v="plan">📆 Daily Plan</button>
   <button data-v="inspectplan">🔍 Daily Inspection</button>
+  <button data-v="team">📣 Scope Solar Management<span class="blink-pop">LIVE</span></button>
 </nav>
 
 
@@ -246,6 +256,7 @@ textarea{min-height:90px;resize:vertical}
         <button class="pill" data-f="upcoming">Upcoming</button>
       </div>
       <button class="btn" onclick="openAdd()">+ Add Site</button>
+      <button class="btn ghost notif-btn" onclick="openNotifs()" title="Notifications">🔔<span class="notif-dot" id="notif-dot">0</span></button>
       <button class="btn ghost" onclick="openUsers()" title="Manage user access">👥 Users</button>
       <button class="btn ghost" onclick="doLogout()" title="Sign out">⎋ Logout</button>
     </div>
@@ -311,6 +322,39 @@ textarea{min-height:90px;resize:vertical}
     <div id="ip-list"></div>
   </div>
 </main>
+
+<main class="view" id="view-team" data-v="team">
+  <div class="panel">
+    <div class="head-row">
+      <h2>📣 Scope Solar Management<span class="blink-pop">DISCUSSION</span></h2>
+      <div class="sub" style="margin-left:auto">Boss & employees team chat — voice + text</div>
+    </div>
+    <div class="sub" style="margin-bottom:10px">Anyone with access can send a voice note (up to 3 min), a text/SMS message, or both. Everyone with access will be notified.</div>
+    <div id="tm-list" style="max-height:55vh;overflow:auto;padding:4px"></div>
+    <div style="border-top:1px solid var(--border);margin:12px 0 10px"></div>
+    <label class="field"><span>Message (optional)</span><textarea id="tm-text" placeholder="Type a message..." rows="2"></textarea></label>
+    <div class="field"><span>Voice note (up to 3 min, optional)</span>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--secondary);border:1px solid var(--border);border-radius:12px;padding:10px">
+        <button type="button" class="btn" id="tm-rec-btn" onclick="toggleTmRec()">🎙 Record</button>
+        <span id="tm-rec-time" style="color:var(--muted);font-variant-numeric:tabular-nums;min-width:46px">0:00</span>
+        <audio id="tm-voice-audio" controls style="flex:1;min-width:180px;display:none"></audio>
+        <button type="button" class="btn danger" id="tm-voice-del" onclick="clearTmVoice()" style="display:none">🗑</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+      <button class="btn" onclick="sendTeamMsg()">📤 Send</button>
+    </div>
+  </div>
+</main>
+
+<!-- Notifications modal -->
+<div class="modal" id="m-notif"><div class="backdrop" onclick="closeNotifs()"></div>
+  <div class="dialog"><div class="dhead"><div><h2>🔔 Notifications</h2><div class="sub">Recent activity</div></div>
+    <button class="iconbtn" style="margin-left:auto" onclick="closeNotifs()">✕</button></div>
+    <div class="dbody"><div id="notif-list"></div></div>
+    <div class="dfoot"><button class="btn ghost" onclick="clearNotifs()">Clear all</button><button class="btn" onclick="closeNotifs()">Close</button></div>
+  </div>
+</div>
 
 <!-- Add Project modal -->
 <div class="modal" id="m-addproj"><div class="backdrop" onclick="closeAddProject()"></div>
@@ -631,11 +675,13 @@ function doLogin(e){
   const ok=(u===MASTER.user&&p===MASTER.pass)||getUsers().some(x=>x.user===u&&x.pass===p);
   if(!ok){document.getElementById("li-err").textContent="Invalid username or password";return;}
   setAuthed(true);
+  sessionStorage.setItem("solar-user-name", u);
   document.getElementById("login-overlay").style.display="none";
   document.getElementById("li-pass").value="";
   document.getElementById("li-err").textContent="";
   render();
 }
+function currentUserName(){ return sessionStorage.getItem("solar-user-name") || "someone"; }
 function doLogout(){setAuthed(false);location.reload();}
 function openUsers(){renderUsers();document.getElementById("m-users").classList.add("open");}
 function closeUsers(){document.getElementById("m-users").classList.remove("open");}
@@ -720,6 +766,7 @@ function showView(name){
   if(name==='complaints') renderComplaints();
   if(name==='plan') renderPlans();
   if(name==='inspectplan') renderInspectPlans();
+  if(name==='team') renderTeam();
 }
 document.getElementById('tabs').addEventListener('click', e=>{
   const b = e.target.closest('button[data-v]'); if(!b) return; showView(b.dataset.v);
@@ -856,10 +903,14 @@ function openPl(id){ const arr=loadJSON(DKEY); const p=arr.find(x=>x.id===id); i
 function closePl(){ stopVoiceRec(true); document.getElementById('m-pl').classList.remove('open'); }
 function savePl(){
   const obj={ id: editingPl||('p'+Date.now()), date: document.getElementById('pl-d').value||todayStr(), site: document.getElementById('pl-site').value, type: document.getElementById('pl-type').value, civil: document.getElementById('pl-civil').value, fab: document.getElementById('pl-fab').value, notes: document.getElementById('pl-notes').value.trim(), voice: currentVoice||'' };
-  if(!obj.site){ alert('Pick a site'); return; }
-  if(!obj.civil && !obj.fab){ alert('Assign at least a Civil team or Fabricator'); return; }
+  // Voice-only plan is allowed. Otherwise require a site + at least one team.
+  if(!obj.voice){
+    if(!obj.site){ alert('Pick a site, or record a voice note to send voice-only.'); return; }
+    if(!obj.civil && !obj.fab){ alert('Assign at least a Civil team or Fabricator (or record a voice note).'); return; }
+  }
   const arr=loadJSON(DKEY); const i=arr.findIndex(x=>x.id===obj.id); if(i>=0) arr[i]=obj; else arr.push(obj);
   try { saveJSON(DKEY,arr); } catch(e){ alert('Storage full — voice note too large. Try a shorter recording.'); return; }
+  notify('plan', `New daily plan${obj.site?(' for '+obj.site):' (voice note)'} by ${currentUserName()}`);
   closePl(); renderPlans();
 }
 function deletePl(){ if(!editingPl||!confirm('Delete plan?')) return; saveJSON(DKEY, loadJSON(DKEY).filter(x=>x.id!==editingPl)); closePl(); renderPlans(); }
@@ -954,5 +1005,115 @@ function deleteIp(){ if(!editingIp||!confirm('Delete inspection?')) return; save
 /* ===== Boot: ensure projects synced into sites ===== */
 syncSitesWithProjects();
 
+
+/* ===== Notifications ===== */
+const NKEY = "solar-notifs-v1";
+function loadNotifs(){ return loadJSON(NKEY); }
+function unreadCount(){ return loadNotifs().filter(n=>!n.read).length; }
+function refreshNotifDot(){
+  const c=unreadCount(); const el=document.getElementById('notif-dot');
+  if(!el) return;
+  el.textContent = c>99?'99+':String(c);
+  el.classList.toggle('on', c>0);
+}
+function notify(kind, message){
+  const arr = loadNotifs();
+  arr.unshift({ id:'n'+Date.now()+Math.random(), kind, msg:message, at:new Date().toISOString(), read:false });
+  saveJSON(NKEY, arr.slice(0,200));
+  refreshNotifDot();
+  // Browser notification for users with access
+  try{
+    if('Notification' in window){
+      if(Notification.permission==='granted'){ new Notification('Scope Solar', { body: message }); }
+      else if(Notification.permission!=='denied'){ Notification.requestPermission().then(p=>{ if(p==='granted') new Notification('Scope Solar', { body: message }); }); }
+    }
+  }catch(e){}
+}
+function openNotifs(){
+  const arr = loadNotifs();
+  const el = document.getElementById('notif-list');
+  el.innerHTML = arr.length ? arr.map(n=>`
+    <div class="msg-row" style="${n.read?'opacity:.65':''}">
+      <div><span class="msg-by">${n.kind==='plan'?'📆 Plan':n.kind==='team'?'📣 Team':'🔔'}</span><span class="msg-at">${new Date(n.at).toLocaleString()}</span></div>
+      <div class="msg-text">${escapeHtml(n.msg||'')}</div>
+    </div>`).join('') : '<div class="empty2">No notifications.</div>';
+  // mark all read
+  saveJSON(NKEY, arr.map(n=>({...n, read:true})));
+  refreshNotifDot();
+  document.getElementById('m-notif').classList.add('open');
+}
+function closeNotifs(){ document.getElementById('m-notif').classList.remove('open'); }
+function clearNotifs(){ if(!confirm('Clear all notifications?')) return; saveJSON(NKEY, []); refreshNotifDot(); openNotifs(); }
+
+/* ===== Scope Solar Management — team discussion ===== */
+const TKEY = "solar-team-msgs-v1";
+let tmMediaRec=null, tmChunks=[], tmStream=null, tmStart=0, tmTimer=null, tmCurrentVoice='';
+function renderTeam(){
+  const arr = loadJSON(TKEY).slice().sort((a,b)=>(b.at||'').localeCompare(a.at||''));
+  const el = document.getElementById('tm-list');
+  el.innerHTML = arr.length ? arr.map(m=>`
+    <div class="msg-row">
+      <div><span class="msg-by">${escapeHtml(m.by||'-')}</span><span class="msg-at">${new Date(m.at).toLocaleString()}</span></div>
+      ${m.text?`<div class="msg-text">${escapeHtml(m.text)}</div>`:''}
+      ${m.voice?`<div style="margin-top:8px"><audio controls src="${m.voice}" style="width:100%;max-width:360px;height:34px"></audio></div>`:''}
+    </div>`).join('') : '<div class="empty2">No messages yet. Start the discussion!</div>';
+  refreshNotifDot();
+  // try requesting Notification permission once user opens team tab
+  try{ if('Notification' in window && Notification.permission==='default'){ Notification.requestPermission(); } }catch(e){}
+}
+function setTmVoice(dataUrl){
+  tmCurrentVoice = dataUrl||'';
+  const a=document.getElementById('tm-voice-audio'), del=document.getElementById('tm-voice-del');
+  if(tmCurrentVoice){ a.src=tmCurrentVoice; a.style.display=''; del.style.display=''; }
+  else { a.removeAttribute('src'); a.style.display='none'; del.style.display='none'; }
+  document.getElementById('tm-rec-time').textContent='0:00';
+  const btn=document.getElementById('tm-rec-btn'); btn.textContent='🎙 Record'; btn.classList.remove('danger');
+}
+function clearTmVoice(){ if(confirm('Remove voice note?')) setTmVoice(''); }
+async function toggleTmRec(){
+  if(tmMediaRec && tmMediaRec.state==='recording'){ stopTmRec(); return; }
+  if(!navigator.mediaDevices || !window.MediaRecorder){ alert('Voice recording not supported on this browser.'); return; }
+  try { tmStream = await navigator.mediaDevices.getUserMedia({audio:true}); }
+  catch(e){ alert('Microphone permission denied.'); return; }
+  const mime = ['audio/webm;codecs=opus','audio/webm','audio/mp4'].find(t=>MediaRecorder.isTypeSupported(t)) || '';
+  tmMediaRec = mime ? new MediaRecorder(tmStream,{mimeType:mime}) : new MediaRecorder(tmStream);
+  tmChunks = [];
+  tmMediaRec.ondataavailable = e => { if(e.data && e.data.size) tmChunks.push(e.data); };
+  tmMediaRec.onstop = () => {
+    const blob = new Blob(tmChunks, {type: tmMediaRec.mimeType||'audio/webm'});
+    if(tmStream){ tmStream.getTracks().forEach(t=>t.stop()); tmStream=null; }
+    clearInterval(tmTimer); tmTimer=null;
+    const btn=document.getElementById('tm-rec-btn'); btn.textContent='🎙 Record'; btn.classList.remove('danger');
+    const fr = new FileReader(); fr.onload = () => setTmVoice(fr.result); fr.readAsDataURL(blob);
+  };
+  tmMediaRec.start(); tmStart=Date.now();
+  const btn=document.getElementById('tm-rec-btn'); btn.textContent='⏹ Stop'; btn.classList.add('danger');
+  document.getElementById('tm-rec-time').textContent='0:00';
+  tmTimer = setInterval(()=>{
+    const el = Date.now()-tmStart;
+    document.getElementById('tm-rec-time').textContent = fmtTime(el);
+    if(el >= REC_MAX_MS) stopTmRec();
+  }, 250);
+}
+function stopTmRec(){
+  if(tmMediaRec && tmMediaRec.state==='recording'){ try{ tmMediaRec.stop(); }catch(e){} }
+  else if(tmStream){ tmStream.getTracks().forEach(t=>t.stop()); tmStream=null; }
+  if(tmTimer){ clearInterval(tmTimer); tmTimer=null; }
+}
+function sendTeamMsg(){
+  const text = document.getElementById('tm-text').value.trim();
+  const voice = tmCurrentVoice||'';
+  if(!text && !voice){ alert('Type a message or record a voice note.'); return; }
+  const by = currentUserName();
+  const msg = { id:'t'+Date.now(), by, text, voice, at: new Date().toISOString() };
+  const arr = loadJSON(TKEY); arr.push(msg);
+  try{ saveJSON(TKEY, arr); }catch(e){ alert('Storage full — voice note too large.'); return; }
+  document.getElementById('tm-text').value=''; setTmVoice('');
+  notify('team', `${by}: ${text? text.slice(0,80) : '🎙 voice note'}`);
+  renderTeam();
+}
+
+// initial notif badge
+refreshNotifDot();
 </script>
 </body></html>
