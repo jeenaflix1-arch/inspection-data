@@ -279,6 +279,33 @@ body.is-admin .admin-only{display:inline-flex !important}
   .acc-row{grid-template-columns:1fr auto}
   .acc-date{grid-column:1/-1;margin-bottom:-4px}
 }
+/* ===== Chat msg menu + deleted state ===== */
+.wa-bubble{cursor:default}
+.wa-bubble .msg-menu-btn{position:absolute;top:2px;right:4px;background:rgba(0,0,0,.25);border:0;color:#fff;width:20px;height:20px;border-radius:50%;font-size:12px;line-height:1;cursor:pointer;opacity:0;transition:opacity .15s}
+.wa-bubble:hover .msg-menu-btn,.wa-bubble.touch-show .msg-menu-btn{opacity:1}
+.wa-bubble.deleted{font-style:italic;opacity:.7;background:#1f2a44 !important;color:#cbd5e1 !important}
+.msg-menu-pop{position:fixed;background:#13294d;border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.6);z-index:200;min-width:180px;overflow:hidden}
+.msg-menu-pop button{display:block;width:100%;text-align:left;padding:10px 14px;background:transparent;border:0;color:var(--fg);font:inherit;cursor:pointer;font-size:13px}
+.msg-menu-pop button:hover{background:rgba(249,115,22,.15)}
+.msg-menu-pop button.danger{color:#fca5a5}
+/* Call modal */
+.call-card{display:flex;flex-direction:column;align-items:center;gap:14px;padding:24px 18px}
+.call-avatar{width:96px;height:96px;border-radius:50%;background:linear-gradient(135deg,#f97316,#fbbf24);display:grid;place-items:center;font-size:42px;color:#1a1208;font-weight:800;box-shadow:0 8px 30px rgba(249,115,22,.4)}
+.call-avatar.ringing{animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(249,115,22,.6)}50%{box-shadow:0 0 0 20px rgba(249,115,22,0)}}
+.call-name{font-size:20px;font-weight:800;color:#fbbf24}
+.call-state{color:var(--muted);font-size:13px}
+.call-timer{font-variant-numeric:tabular-nums;font-size:18px;font-weight:700;color:#a7f3d0}
+.call-actions{display:flex;gap:14px;margin-top:8px}
+.call-btn{width:60px;height:60px;border-radius:50%;border:0;font-size:24px;cursor:pointer;display:grid;place-items:center;color:#fff;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+.call-btn.accept{background:#16a34a}
+.call-btn.hangup{background:#dc2626}
+.call-btn.mute{background:#475569}
+.call-btn.mute.on{background:#f59e0b;color:#1a1208}
+.call-user-row{display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--secondary);border:1px solid var(--border);border-radius:10px;margin-bottom:8px}
+.incoming-toast{position:fixed;top:14px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;padding:14px 18px;border-radius:14px;display:flex;gap:12px;align-items:center;box-shadow:0 10px 30px rgba(0,0,0,.5);z-index:300;animation:dropIn .25s ease}
+@keyframes dropIn{from{transform:translate(-50%,-30px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+.incoming-toast button{border:0;border-radius:10px;padding:8px 12px;font-weight:700;cursor:pointer}
 
 </style>
 </head>
@@ -369,7 +396,7 @@ body.is-admin .admin-only{display:inline-flex !important}
         <button class="pill" data-f="done">Done</button>
         <button class="pill" data-f="upcoming">Upcoming</button>
       </div>
-      <button class="btn" onclick="openAdd()">+ Add Site</button>
+      <!-- Add Site removed — sites auto-sync from Project Details -->
       <button class="btn ghost notif-btn" onclick="openNotifs()" title="Notifications">🔔<span class="notif-dot" id="notif-dot">0</span></button>
       <button class="btn ghost admin-only" onclick="openUsers()" title="Manage user access">👥 Users</button>
       <button class="btn ghost" onclick="doLogout()" title="Sign out">⎋ Logout</button>
@@ -445,6 +472,7 @@ body.is-admin .admin-only{display:inline-flex !important}
         <div class="wa-title">Scope Solar Management</div>
         <div class="wa-sub">Team discussion · voice, text, photos</div>
       </div>
+      <button class="wa-icon-btn" title="Audio call a team member" onclick="openCallPicker()" style="font-size:18px">📞</button>
       <span class="blink-pop">LIVE</span>
     </div>
     <div class="wa-body" id="tm-list"></div>
@@ -555,6 +583,35 @@ body.is-admin .admin-only{display:inline-flex !important}
     </div>
   </div>
 </div>
+
+<!-- Call user picker -->
+<div class="modal" id="m-callpick"><div class="backdrop" onclick="closeCallPicker()"></div>
+  <div class="dialog"><div class="dhead"><div><h2>📞 Audio Call</h2><div class="sub">Pick a team member to call</div></div>
+    <button class="iconbtn" style="margin-left:auto" onclick="closeCallPicker()">✕</button></div>
+    <div class="dbody"><div id="call-users-list"></div></div>
+    <div class="dfoot"><button class="btn ghost" onclick="closeCallPicker()">Cancel</button></div>
+  </div>
+</div>
+
+<!-- In-call UI -->
+<div class="modal" id="m-call"><div class="backdrop"></div>
+  <div class="dialog">
+    <div class="call-card">
+      <div class="call-avatar ringing" id="call-avatar">👤</div>
+      <div class="call-name" id="call-name">—</div>
+      <div class="call-state" id="call-state">Connecting…</div>
+      <div class="call-timer" id="call-timer" style="display:none">0:00</div>
+      <audio id="call-remote-audio" autoplay></audio>
+      <div class="call-actions">
+        <button class="call-btn mute" id="call-mute-btn" onclick="toggleCallMute()" title="Mute">🎤</button>
+        <button class="call-btn accept" id="call-accept-btn" onclick="acceptIncomingCall()" style="display:none" title="Accept">✓</button>
+        <button class="call-btn hangup" onclick="hangupCall()" title="End call">✕</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
 
 
 <!-- Notifications modal -->
@@ -1284,7 +1341,15 @@ function renderTeam(){
     }
     const mine = (m.by||'') === me;
     const t = d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-    return `${dayChip}<div class="wa-bubble ${mine?'out':'in'}">
+    if(m.deleted){
+      return `${dayChip}<div class="wa-bubble ${mine?'out':'in'} deleted" data-id="${m.id}">
+        ${!mine?`<div class="wa-by">${escapeHtml(m.by||'-')}</div>`:''}
+        <div class="wa-text">🚫 This message was deleted</div>
+        <span class="wa-time">${t}</span>
+      </div>`;
+    }
+    return `${dayChip}<div class="wa-bubble ${mine?'out':'in'}" data-id="${m.id}" data-mine="${mine?1:0}">
+      <button class="msg-menu-btn" type="button" onclick="event.stopPropagation();openMsgMenu(event,'${m.id}',${mine?1:0})">⋮</button>
       ${!mine?`<div class="wa-by">${escapeHtml(m.by||'-')}</div>`:''}
       ${m.text?`<div class="wa-text">${escapeHtml(m.text)}</div>`:''}
       ${m.voice?`<audio controls src="${m.voice}"></audio>`:''}
@@ -1351,6 +1416,225 @@ function sendTeamMsg(){
   notify('team', `${by}: ${text? text.slice(0,80) : '🎙 voice note'}`);
   renderTeam();
 }
+
+/* ===== Message menu: delete for me / for everyone ===== */
+function openMsgMenu(ev, id, mine){
+  closeMsgMenu();
+  const pop = document.createElement('div');
+  pop.className = 'msg-menu-pop';
+  pop.id = '__msg_menu';
+  pop.innerHTML = `
+    <button onclick="deleteMsgForMe('${id}')">🗑 Delete for me</button>
+    ${mine?`<button class="danger" onclick="deleteMsgForEveryone('${id}')">🚫 Delete for everyone</button>`:''}
+    <button onclick="closeMsgMenu()">Cancel</button>`;
+  document.body.appendChild(pop);
+  const r = ev.target.getBoundingClientRect();
+  pop.style.top = Math.min(window.innerHeight-160, r.bottom+4)+'px';
+  pop.style.left = Math.max(8, Math.min(window.innerWidth-200, r.left-160))+'px';
+  setTimeout(()=>document.addEventListener('click', closeMsgMenu, {once:true}), 0);
+}
+function closeMsgMenu(){ const e=document.getElementById('__msg_menu'); if(e) e.remove(); }
+function deleteMsgForMe(id){
+  closeMsgMenu();
+  if(!confirm('Delete this message from your view? (Other team members will still see it)')) return;
+  const hidden = JSON.parse(localStorage.getItem('solar-team-hidden-v1')||'[]');
+  if(!hidden.includes(id)){ hidden.push(id); localStorage.setItem('solar-team-hidden-v1', JSON.stringify(hidden)); }
+  renderTeam();
+}
+function deleteMsgForEveryone(id){
+  closeMsgMenu();
+  if(!confirm('Delete this message for EVERYONE? This cannot be undone.')) return;
+  const arr = loadJSON(TKEY);
+  const i = arr.findIndex(x=>x.id===id);
+  if(i<0) return;
+  arr[i] = { ...arr[i], deleted:true, text:'', voice:'', media:[], deletedAt:new Date().toISOString(), deletedBy:currentUserName() };
+  saveJSON(TKEY, arr);
+  renderTeam();
+}
+// Patch renderTeam to skip hidden-for-me messages
+(function(){
+  const _orig = window.renderTeam;
+  window.renderTeam = function(){
+    const hidden = new Set(JSON.parse(localStorage.getItem('solar-team-hidden-v1')||'[]'));
+    if(!hidden.size) return _orig();
+    const arr = loadJSON(TKEY);
+    const kept = arr.filter(m=>!hidden.has(m.id));
+    // temporarily swap storage view
+    const restore = loadJSON;
+    window.loadJSON = function(k){ if(k===TKEY) return kept; return restore(k); };
+    try{ _orig(); } finally { window.loadJSON = restore; }
+  };
+})();
+
+/* ===== Audio Call (WebRTC over jsonblob signaling) ===== */
+const CALL_SIGNAL_KEY = "solar-call-signals-v1";
+let callPC = null, callLocalStream = null, callTimer = null, callStartTs = 0;
+let callState = { id:null, peer:null, role:null, muted:false, accepted:false };
+let callPollTimer = null, callSeenIds = new Set();
+
+function openCallPicker(){
+  const list = document.getElementById('call-users-list');
+  const me = currentUserName();
+  const users = [{user:'scopesolar'}].concat(typeof getUsers==='function'?getUsers():[]).filter(u=>u.user!==me);
+  list.innerHTML = users.length ? users.map(u=>`
+    <div class="call-user-row">
+      <div><b>${escapeHtml(u.user)}</b>${u.user==='scopesolar'?' <span style="color:#fbbf24;font-size:10px">(master)</span>':''}</div>
+      <button class="btn" onclick="startCall('${escapeHtml(u.user)}')">📞 Call</button>
+    </div>`).join('') : '<div class="empty2">No other users to call. Add team members from the Users panel first.</div>';
+  document.getElementById('m-callpick').classList.add('open');
+}
+function closeCallPicker(){ document.getElementById('m-callpick').classList.remove('open'); }
+
+async function _fetchSignals(){
+  try{
+    const r = await fetch((window.__API_BASE||'') + '/api/public/jsonblob', {cache:'no-store'});
+    if(!r.ok) return [];
+    const d = await r.json();
+    return Array.isArray(d && d[CALL_SIGNAL_KEY]) ? d[CALL_SIGNAL_KEY] : [];
+  }catch(e){ return []; }
+}
+async function _pushSignal(sig){
+  try{
+    const r = await fetch((window.__API_BASE||'') + '/api/public/jsonblob', {cache:'no-store'});
+    const d = (r.ok ? await r.json() : {}) || {};
+    const arr = Array.isArray(d[CALL_SIGNAL_KEY]) ? d[CALL_SIGNAL_KEY] : [];
+    // keep only last 5 min
+    const cutoff = Date.now() - 5*60*1000;
+    const cleaned = arr.filter(s=>(s.ts||0) > cutoff);
+    cleaned.push({...sig, ts:Date.now(), sid:'s'+Date.now()+Math.random().toString(36).slice(2,6)});
+    d[CALL_SIGNAL_KEY] = cleaned;
+    await fetch((window.__API_BASE||'') + '/api/public/jsonblob', {
+      method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(d)
+    });
+  }catch(e){ console.warn('signal push failed', e); }
+}
+
+async function startCall(peer){
+  closeCallPicker();
+  callState = { id:'c'+Date.now()+Math.random().toString(36).slice(2,5), peer, role:'caller', muted:false, accepted:false };
+  showCallUI(peer, 'Calling…', false);
+  try{
+    callLocalStream = await navigator.mediaDevices.getUserMedia({audio:true});
+  }catch(e){ alert('Microphone permission required to call.'); hangupCall(); return; }
+  _setupPC();
+  callLocalStream.getTracks().forEach(t=>callPC.addTrack(t, callLocalStream));
+  const offer = await callPC.createOffer();
+  await callPC.setLocalDescription(offer);
+  await _pushSignal({callId:callState.id, from:currentUserName(), to:peer, type:'offer', sdp:offer});
+  _startSignalPolling();
+}
+
+function _setupPC(){
+  callPC = new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}]});
+  callPC.onicecandidate = e=>{
+    if(e.candidate){
+      _pushSignal({callId:callState.id, from:currentUserName(), to:callState.peer, type:'ice', candidate:e.candidate});
+    }
+  };
+  callPC.ontrack = e=>{
+    const a = document.getElementById('call-remote-audio');
+    a.srcObject = e.streams[0];
+  };
+  callPC.onconnectionstatechange = ()=>{
+    if(['failed','disconnected','closed'].includes(callPC.connectionState)){
+      if(callState.accepted) hangupCall();
+    } else if(callPC.connectionState==='connected'){
+      _markConnected();
+    }
+  };
+}
+function _markConnected(){
+  callState.accepted = true;
+  document.getElementById('call-state').textContent = 'In call';
+  document.getElementById('call-avatar').classList.remove('ringing');
+  document.getElementById('call-timer').style.display = '';
+  callStartTs = Date.now();
+  clearInterval(callTimer);
+  callTimer = setInterval(()=>{
+    const s = Math.floor((Date.now()-callStartTs)/1000);
+    const mm = String(Math.floor(s/60)).padStart(2,'0'), ss = String(s%60).padStart(2,'0');
+    document.getElementById('call-timer').textContent = mm+':'+ss;
+  }, 500);
+}
+
+function showCallUI(peer, state, isIncoming){
+  document.getElementById('call-name').textContent = peer;
+  document.getElementById('call-state').textContent = state;
+  document.getElementById('call-timer').style.display='none';
+  document.getElementById('call-avatar').classList.add('ringing');
+  document.getElementById('call-accept-btn').style.display = isIncoming ? '' : 'none';
+  document.getElementById('m-call').classList.add('open');
+}
+
+function _startSignalPolling(){
+  clearInterval(callPollTimer);
+  callPollTimer = setInterval(async ()=>{
+    const me = currentUserName();
+    const sigs = await _fetchSignals();
+    for(const s of sigs){
+      if(s.to !== me) continue;
+      if(callSeenIds.has(s.sid)) continue;
+      callSeenIds.add(s.sid);
+      // pertains to my active call?
+      if(!callState.id && s.type==='offer'){ _handleIncomingOffer(s); }
+      else if(callState.id && s.callId===callState.id){
+        if(s.type==='answer'){ try{ await callPC.setRemoteDescription(s.sdp); }catch(e){} }
+        else if(s.type==='ice'){ try{ await callPC.addIceCandidate(s.candidate); }catch(e){} }
+        else if(s.type==='hangup'){ hangupCall(true); }
+        else if(s.type==='reject'){ document.getElementById('call-state').textContent='Call declined'; setTimeout(()=>hangupCall(true),900); }
+      }
+    }
+  }, 1200);
+}
+
+let pendingIncoming = null;
+async function _handleIncomingOffer(sig){
+  pendingIncoming = sig;
+  callState = { id:sig.callId, peer:sig.from, role:'callee', muted:false, accepted:false };
+  showCallUI(sig.from, 'Incoming call…', true);
+  try{ const ping = new Audio('data:audio/wav;base64,'); ping.play().catch(()=>{}); }catch(e){}
+}
+async function acceptIncomingCall(){
+  if(!pendingIncoming) return;
+  const sig = pendingIncoming; pendingIncoming = null;
+  document.getElementById('call-accept-btn').style.display='none';
+  document.getElementById('call-state').textContent='Connecting…';
+  try{ callLocalStream = await navigator.mediaDevices.getUserMedia({audio:true}); }
+  catch(e){ alert('Microphone permission required.'); await _pushSignal({callId:sig.callId, from:currentUserName(), to:sig.from, type:'reject'}); hangupCall(true); return; }
+  _setupPC();
+  callLocalStream.getTracks().forEach(t=>callPC.addTrack(t, callLocalStream));
+  await callPC.setRemoteDescription(sig.sdp);
+  const answer = await callPC.createAnswer();
+  await callPC.setLocalDescription(answer);
+  await _pushSignal({callId:sig.callId, from:currentUserName(), to:sig.from, type:'answer', sdp:answer});
+}
+function toggleCallMute(){
+  if(!callLocalStream) return;
+  callState.muted = !callState.muted;
+  callLocalStream.getAudioTracks().forEach(t=>t.enabled = !callState.muted);
+  const b = document.getElementById('call-mute-btn');
+  b.classList.toggle('on', callState.muted);
+  b.textContent = callState.muted ? '🔇' : '🎤';
+}
+async function hangupCall(skipNotify){
+  if(callState.id && !skipNotify){
+    await _pushSignal({callId:callState.id, from:currentUserName(), to:callState.peer, type:'hangup'});
+  }
+  try{ if(callPC){ callPC.close(); } }catch(e){}
+  callPC = null;
+  if(callLocalStream){ callLocalStream.getTracks().forEach(t=>t.stop()); callLocalStream=null; }
+  clearInterval(callTimer); callTimer=null;
+  const a = document.getElementById('call-remote-audio'); a.srcObject=null;
+  document.getElementById('m-call').classList.remove('open');
+  callState = { id:null, peer:null, role:null, muted:false, accepted:false };
+  pendingIncoming = null;
+}
+// Always poll for incoming calls when logged in
+function _ensureIncomingPoll(){
+  if(callPollTimer) return;
+  _startSignalPolling();
+}
+setTimeout(()=>{ if(typeof isAuthed==='function' && isAuthed()) _ensureIncomingPoll(); }, 1500);
 
 /* ===== Team media (image/video) attachments ===== */
 window.tmPendingMedia = [];
