@@ -322,6 +322,7 @@ body.is-admin .admin-only{display:inline-flex !important}
     <button class="iconbtn" onclick="closeSidebar()" title="Close">✕</button>
   </div>
   <nav class="sb-nav" id="sb-nav">
+    <button class="sb-link" data-v="home"><span class="ic">🏠</span>Home</button>
     <button class="sb-link" data-v="team"><span class="ic">💬</span>Scope Solar Management</button>
     <button class="sb-link" data-v="projects"><span class="ic">📋</span>Project Details</button>
     <button class="sb-link" data-v="plan"><span class="ic">📆</span>Daily Plan</button>
@@ -385,6 +386,19 @@ body.is-admin .admin-only{display:inline-flex !important}
   <button data-v="team">📣 Scope Solar Management<span class="blink-pop">LIVE</span></button>
 </nav>
 
+
+<main class="view" id="view-home" data-v="home">
+  <div class="card">
+    <div class="card-head" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <h2 style="margin:0">🏠 Home</h2>
+      <button class="btn admin-only" onclick="openUsers()">➕ Add User</button>
+    </div>
+    <div style="margin-top:14px">
+      <h3 style="margin:0 0 8px 0;font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Team Members</h3>
+      <div id="home-users-list"></div>
+    </div>
+  </div>
+</main>
 
 <main class="view active" id="view-inspections" data-v="inspections">
   <div class="panel">
@@ -1031,16 +1045,22 @@ function syncSitesWithProjects(){
 
 /* ===== Tabs ===== */
 function showView(name){
+  window.__currentView = name;
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active', v.dataset.v===name));
   document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active', b.dataset.v===name));
   document.querySelectorAll('.sb-link').forEach(b=>b.classList.toggle('active', b.dataset.v===name));
+  try{ if(location.hash.slice(1)!==name) history.replaceState(null,'','#'+name); }catch(_){}
+  if(name==='home') renderHome();
   if(name==='projects') renderProjects();
   if(name==='complaints') renderComplaints();
   if(name==='plan') renderPlans();
   if(name==='inspectplan') renderInspectPlans();
   if(name==='team') renderTeam();
   if(name==='accounts') renderAccounts();
+  if(typeof render==='function' && name==='inspections') render();
 }
+function rerenderCurrent(){ const v = window.__currentView; if(v) showView(v); }
+window.addEventListener('hashchange', ()=>{ const v=location.hash.slice(1); if(v) showView(v); });
 const _tabsEl = document.getElementById('tabs');
 if(_tabsEl) _tabsEl.addEventListener('click', e=>{
   const b = e.target.closest('button[data-v]'); if(!b) return; showView(b.dataset.v);
@@ -1054,11 +1074,12 @@ function renderProjects(){
   document.getElementById('pj-count').textContent = filtered.length;
   const grid = document.getElementById('pj-grid');
   grid.innerHTML = filtered.length ? filtered.map(p=>`
-    <div class="pcard">
+    <div class="pcard" style="position:relative">
       <span class="sr">#${p.sr}</span>
       <h4>${escapeHtml(p.client||'-')}</h4>
       <div class="loc">${escapeHtml(p.location||'-')}</div>
       <div class="cap">⚡ ${escapeHtml(String(p.capacity||'-'))} kW</div>
+      <button class="btn danger admin-only" style="position:absolute;top:8px;right:8px;padding:4px 8px;font-size:11px" onclick="deleteProject(${p.sr},event)" title="Delete project">🗑</button>
     </div>`).join('') : '<div class="empty2">No projects match.</div>';
 }
 document.getElementById('pj-q').addEventListener('input', renderProjects);
@@ -1078,6 +1099,56 @@ function doAddProject(){
   closeAddProject();
   renderProjects();
   if(typeof render==='function') render();
+}
+
+
+function deleteProject(sr, ev){
+  if(ev){ ev.stopPropagation(); ev.preventDefault(); }
+  if(!isAdminUser()){ alert('Only admin can delete projects.'); return; }
+  if(!confirm('Delete this project?')) return;
+  const arr = loadProjects().filter(p=>Number(p.sr)!==Number(sr));
+  saveProjects(arr);
+  renderProjects();
+}
+
+/* ===== Presence (online users) ===== */
+const PRESKEY = "solar-presence-v1";
+function loadPresence(){ try{ return JSON.parse(localStorage.getItem(PRESKEY))||{}; }catch(e){ return {}; } }
+function savePresence(p){ localStorage.setItem(PRESKEY, JSON.stringify(p)); }
+function presenceBeat(){
+  const me = currentUserName(); if(!me || me==='someone') return;
+  const all = loadPresence();
+  all[me] = { at: Date.now(), admin: isAdminUser() };
+  // prune old entries (>10 min) to keep blob small
+  const cutoff = Date.now() - 10*60*1000;
+  for(const k of Object.keys(all)){ if(!all[k] || all[k].at < cutoff) delete all[k]; }
+  savePresence(all);
+}
+function isOnline(name){
+  const all = loadPresence();
+  const rec = all[name]; if(!rec) return false;
+  return (Date.now() - (rec.at||0)) < 25000; // online if seen in last 25s
+}
+function renderHome(){
+  const el = document.getElementById('home-users-list'); if(!el) return;
+  const presence = loadPresence();
+  const users = getUsers();
+  // build list: master first, then registered users
+  const rows = [];
+  const masterName = MASTER.user;
+  rows.push({ name: masterName, role: 'CEO / Admin', online: isOnline(masterName) });
+  users.forEach(u=> rows.push({ name: u.user, role: 'User', online: isOnline(u.user) }));
+  // Add any presence-only names not in users list
+  Object.keys(presence).forEach(n=>{ if(n!==masterName && !users.some(u=>u.user===n)) rows.push({ name:n, role:'Guest', online: isOnline(n) }); });
+  el.innerHTML = rows.map(r=>`
+    <div class="user-row" style="justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:10px;flex:1">
+        <span style="width:10px;height:10px;border-radius:50%;background:${r.online?'#10b981':'#64748b'};box-shadow:${r.online?'0 0 8px #10b981':'none'};flex-shrink:0"></span>
+        <div class="u">${escapeHtml(r.name)} ${r.role==='CEO / Admin'?'<span style="color:#fbbf24;font-size:10px;font-weight:700">★ CEO</span>':''}</div>
+        <span style="color:${r.online?'#10b981':'var(--muted)'};font-size:12px;font-weight:600">${r.online?'● Online':'○ Offline'}</span>
+      </div>
+    </div>
+  `).join('') || '<div class="empty2">No users yet.</div>';
 }
 
 /* ===== Generic storage helpers ===== */
@@ -1810,7 +1881,7 @@ refreshNotifDot();
   const KEYS = [
     "solar-inspection-sites-v1","solar-users-v1","solar-projects-v1",
     "solar-complaints-v1","solar-plans-v1","solar-inspectplans-v1",
-    "solar-team-msgs-v1","solar-notifs-v1"
+    "solar-team-msgs-v1","solar-notifs-v1","solar-presence-v1","solar-accounts-v1"
   ];
   let suppress = false;
 
@@ -1821,14 +1892,17 @@ refreshNotifDot();
       const d = await r.json();
       if(!d || typeof d !== "object") return false;
       suppress = true;
+      let changed = false;
       for(const k of KEYS){
         if(d[k]==null) continue;
         const incoming = typeof d[k]==="string" ? d[k] : JSON.stringify(d[k]);
         if(localStorage.getItem(k) !== incoming){
           _origSet(k, incoming);
+          changed = true;
         }
       }
       suppress = false;
+      if(changed){ try{ if(typeof rerenderCurrent==='function') rerenderCurrent(); }catch(_){} }
       return true;
     }catch(e){ suppress=false; return false; }
   }
@@ -1860,7 +1934,32 @@ refreshNotifDot();
   localStorage.removeItem = function(k){ _origRm(k); if(KEYS.includes(k)) pushSoon(); };
 
   window.__cloudReady = pullNow();
-  setInterval(pullNow, 4000);
+  setInterval(pullNow, 2000);
+  // Presence heartbeat
+  setInterval(()=>{ try{ if(typeof presenceBeat==='function') presenceBeat(); }catch(_){} }, 5000);
+  // Restore route from hash on first load
+  function restoreHash(){
+    try{
+      const v = (location.hash||'').slice(1);
+      if(v && document.querySelector('.view[data-v="'+v+'"]')){
+        if(typeof showView==='function') showView(v);
+      }
+      if(typeof presenceBeat==='function') presenceBeat();
+    }catch(_){}
+  }
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded', restoreHash);
+  } else { restoreHash(); }
+  // Mark offline on unload
+  window.addEventListener('beforeunload', ()=>{
+    try{
+      const me = currentUserName();
+      if(!me || me==='someone') return;
+      const all = JSON.parse(localStorage.getItem('solar-presence-v1')||'{}');
+      delete all[me];
+      localStorage.setItem('solar-presence-v1', JSON.stringify(all));
+    }catch(_){}
+  });
 
   /* ===== Username badge in header ===== */
   function showBadge(){
@@ -1883,7 +1982,9 @@ refreshNotifDot();
     try{ await window.__cloudReady; }catch(_){}
     await pullNow();
     if(errEl) errEl.textContent = "";
-    return _origLogin.call(this, e);
+    const r = _origLogin.call(this, e);
+    setTimeout(()=>{ try{ presenceBeat(); rerenderCurrent(); }catch(_){} }, 200);
+    return r;
   };
 })();
 </script>
