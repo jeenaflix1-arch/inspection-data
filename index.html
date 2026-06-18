@@ -313,7 +313,7 @@ body.is-admin .admin-only{display:inline-flex !important}
 
 <!-- Sidebar -->
 <div id="sidebar-backdrop" onclick="closeSidebar()"></div>
-<aside id="sidebar">
+<aside id="sidebar" style="display:flex;flex-direction:column">
   <div class="sb-head">
     <div style="flex:1">
       <div class="sb-title">SCOPE SOLAR MANAGEMENT</div>
@@ -331,6 +331,9 @@ body.is-admin .admin-only{display:inline-flex !important}
     <button class="sb-link" data-v="complaints"><span class="ic">⚠</span>Complaints</button>
     <button class="sb-link" data-v="accounts"><span class="ic">💰</span>Accounts</button>
   </nav>
+  <div style="padding:8px 12px;border-top:1px solid var(--border);margin-top:auto">
+    <button class="sb-link" onclick="doLogout()" style="color:#fca5a5"><span class="ic">⎋</span>Logout</button>
+  </div>
   <div class="sb-foot">© Scope Solar</div>
 </aside>
 
@@ -357,6 +360,13 @@ body.is-admin .admin-only{display:inline-flex !important}
       <label class="field"><span>New password</span>
         <div style="display:flex;gap:6px"><input type="text" id="nu-pass" style="flex:1"/><button type="button" class="btn ghost" onclick="genPass()">Generate</button></div>
       </label>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+        <div style="font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Module Permissions</div>
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer">
+          <input type="checkbox" id="nu-full" onchange="toggleFullAccess(this)"/> <b>Full Access (all modules, all actions)</b>
+        </label>
+        <div id="nu-perms-grid" style="display:grid;gap:6px"></div>
+      </div>
     </div>
     <div class="dfoot"><button class="btn ghost" onclick="closeUsers()">Close</button><button class="btn" onclick="addUser()">Add user</button></div>
   </div>
@@ -373,6 +383,7 @@ body.is-admin .admin-only{display:inline-flex !important}
     <div class="stat">Sites <b id="st-sites">0</b></div>
     <div class="stat s">Done <b id="st-done">0</b></div>
     <div class="stat d">Overdue <b id="st-pend">0</b></div>
+    <button class="btn ghost notif-btn" onclick="openNotifs()" title="Notifications" style="position:relative">🔔<span class="notif-dot" id="notif-dot-hdr">0</span></button>
     <div class="stat" id="topbar-user" style="display:none;background:rgba(34,197,94,.15);border-color:rgba(34,197,94,.35);color:#86efac">👤 <b id="topbar-username"></b></div>
   </div>
 </div></header>
@@ -412,8 +423,6 @@ body.is-admin .admin-only{display:inline-flex !important}
       </div>
       <!-- Add Site removed — sites auto-sync from Project Details -->
       <button class="btn ghost notif-btn" onclick="openNotifs()" title="Notifications">🔔<span class="notif-dot" id="notif-dot">0</span></button>
-      <button class="btn ghost admin-only" onclick="openUsers()" title="Manage user access">👥 Users</button>
-      <button class="btn ghost" onclick="doLogout()" title="Sign out">⎋ Logout</button>
     </div>
     <div class="legend">
       <span><i class="sw done"></i>Completed</span>
@@ -486,7 +495,7 @@ body.is-admin .admin-only{display:inline-flex !important}
         <div class="wa-title">Scope Solar Management</div>
         <div class="wa-sub">Team discussion · voice, text, photos</div>
       </div>
-      <button class="wa-icon-btn" title="Audio call a team member" onclick="openCallPicker()" style="font-size:18px">📞</button>
+      <button class="wa-icon-btn" title="Clear chat" onclick="clearTeamChat()" style="font-size:16px">🧹</button>
       <span class="blink-pop">LIVE</span>
     </div>
     <div class="wa-body" id="tm-list"></div>
@@ -498,8 +507,8 @@ body.is-admin .admin-only{display:inline-flex !important}
         <button type="button" class="btn danger" id="tm-voice-del" onclick="clearTmVoice()" style="display:none">🗑</button>
       </div>
       <div class="wa-input-row">
-        <input type="file" id="tm-file" accept="image/*,video/*" multiple style="display:none" onchange="onTmFiles(event)"/>
-        <button type="button" class="wa-icon-btn" title="Attach photo/video" onclick="document.getElementById('tm-file').click()">📎</button>
+        <input type="file" id="tm-file" accept="image/*" multiple style="display:none" onchange="onTmFiles(event)"/>
+        <button type="button" class="wa-icon-btn" title="Attach photo" onclick="document.getElementById('tm-file').click()">📷</button>
         <button type="button" class="wa-icon-btn" id="tm-rec-btn" title="Record voice (3 min max)" onclick="toggleTmRec()">🎙</button>
         <textarea id="tm-text" placeholder="Type a message..." rows="1"></textarea>
         <button type="button" class="wa-send" onclick="sendTeamMsg()" title="Send">➤</button>
@@ -1456,7 +1465,13 @@ async function toggleTmRec(){
     if(tmStream){ tmStream.getTracks().forEach(t=>t.stop()); tmStream=null; }
     clearInterval(tmTimer); tmTimer=null;
     const btn=document.getElementById('tm-rec-btn'); btn.textContent='🎙'; btn.classList.remove('danger');
-    const fr = new FileReader(); fr.onload = () => setTmVoice(fr.result); fr.readAsDataURL(blob);
+    const fr = new FileReader(); fr.onload = () => {
+      // Skip ultra-short accidental taps (<350ms)
+      if(window._tmRecCancel){ window._tmRecCancel=false; setTmVoice(''); return; }
+      setTmVoice(fr.result);
+      // WhatsApp-style: auto-send immediately after stopping
+      try { sendTeamMsg(); } catch(e){}
+    }; fr.readAsDataURL(blob);
   };
   tmMediaRec.start(); tmStart=Date.now();
   const btn=document.getElementById('tm-rec-btn'); btn.textContent='⏹'; btn.classList.add('danger');
@@ -1625,7 +1640,7 @@ function _markConnected(){
     const s = Math.floor((Date.now()-callStartTs)/1000);
     const mm = String(Math.floor(s/60)).padStart(2,'0'), ss = String(s%60).padStart(2,'0');
     document.getElementById('call-timer').textContent = mm+':'+ss;
-  }, 500);
+  }, 150);
 }
 
 function showCallUI(peer, state, isIncoming){
@@ -1934,7 +1949,7 @@ refreshNotifDot();
   localStorage.removeItem = function(k){ _origRm(k); if(KEYS.includes(k)) pushSoon(); };
 
   window.__cloudReady = pullNow();
-  setInterval(pullNow, 2000);
+  setInterval(pullNow, 1000);
   // Presence heartbeat
   setInterval(()=>{ try{ if(typeof presenceBeat==='function') presenceBeat(); }catch(_){} }, 5000);
   // Restore route from hash on first load
@@ -1988,4 +2003,227 @@ refreshNotifDot();
   };
 })();
 </script>
+
+<script>
+/* ===== TRACKER_11: Permissions, Home landing, CEO-only online, sync, clear chat ===== */
+(function(){
+  const MODULES = [
+    {k:'team',     name:'Scope Solar Management'},
+    {k:'projects', name:'Project Details'},
+    {k:'plan',     name:'Daily Plan'},
+    {k:'inspectplan', name:'Daily Inspection'},
+    {k:'inspections', name:'Inspection Records'},
+    {k:'complaints',  name:'Complaints'},
+    {k:'accounts', name:'Accounts'},
+  ];
+  const LEVELS = [
+    {v:'none',  l:'No access'},
+    {v:'view',  l:'View only'},
+    {v:'add',   l:'View + Add'},
+    {v:'edit',  l:'View + Add + Edit'},
+    {v:'delete',l:'View + Add + Edit + Delete'},
+    {v:'full',  l:'Full Access'},
+  ];
+  window.SOLAR_MODULES = MODULES;
+  window.SOLAR_LEVELS = LEVELS;
+
+  // Build permissions grid inside Add User modal
+  function buildPermsGrid(){
+    const g = document.getElementById('nu-perms-grid'); if(!g) return;
+    g.innerHTML = MODULES.map(m=>`
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px">
+        <span style="flex:1">${m.name}</span>
+        <select class="nu-perm" data-mod="${m.k}" style="background:#0f1f3e;color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:4px 6px;font-size:12px">
+          ${LEVELS.map(L=>`<option value="${L.v}">${L.l}</option>`).join('')}
+        </select>
+      </label>`).join('');
+    // default to "view" for everyone
+    g.querySelectorAll('.nu-perm').forEach(s=>s.value='view');
+  }
+  window.toggleFullAccess = function(cb){
+    document.querySelectorAll('.nu-perm').forEach(s=>{
+      s.value = cb.checked ? 'full' : 'view';
+      s.disabled = cb.checked;
+    });
+  };
+  // Hook openUsers to rebuild grid
+  const _origOpenUsers = window.openUsers;
+  window.openUsers = function(){
+    _origOpenUsers.apply(this, arguments);
+    buildPermsGrid();
+    const cb=document.getElementById('nu-full'); if(cb){ cb.checked=false; }
+  };
+
+  // Override addUser to capture perms
+  const _origAddUser = window.addUser;
+  window.addUser = function(){
+    const u=document.getElementById("nu-user").value.trim();
+    const p=document.getElementById("nu-pass").value.trim();
+    if(!u||!p){alert("Enter username and password");return;}
+    if(u==='scopesolar' || (JSON.parse(localStorage.getItem('solar-users-v1')||'[]')).some(x=>x.user===u)){
+      alert("Username already exists");return;
+    }
+    const perms = {};
+    document.querySelectorAll('.nu-perm').forEach(sel=>{ perms[sel.dataset.mod] = sel.value; });
+    if(document.getElementById('nu-full')&&document.getElementById('nu-full').checked){
+      MODULES.forEach(m=>perms[m.k]='full');
+    }
+    const arr = JSON.parse(localStorage.getItem('solar-users-v1')||'[]');
+    arr.push({user:u, pass:p, perms});
+    localStorage.setItem('solar-users-v1', JSON.stringify(arr));
+    document.getElementById("nu-user").value=""; document.getElementById("nu-pass").value="";
+    buildPermsGrid();
+    if(typeof renderUsers==='function') renderUsers();
+    if(typeof renderHome==='function') renderHome();
+  };
+
+  // Get current user perms (admin = full everywhere)
+  function getCurrentPerms(){
+    if(isAdminUser()) { const o={}; MODULES.forEach(m=>o[m.k]='full'); return o; }
+    const me = currentUserName();
+    const u = (JSON.parse(localStorage.getItem('solar-users-v1')||'[]')).find(x=>x.user===me);
+    return (u && u.perms) || {};
+  }
+  function canView(mod){
+    const p = getCurrentPerms()[mod];
+    return p && p !== 'none';
+  }
+  function canDo(mod, action){
+    // action: 'add' | 'edit' | 'delete'
+    const p = getCurrentPerms()[mod] || 'none';
+    if(p==='full') return true;
+    if(action==='add')    return ['add','edit','delete'].includes(p);
+    if(action==='edit')   return ['edit','delete'].includes(p);
+    if(action==='delete') return p==='delete';
+    return false;
+  }
+  window.canView = canView;
+  window.canDo = canDo;
+
+  // Apply permissions to sidebar + tabs visibility
+  function applyPerms(){
+    // Home is always visible
+    document.querySelectorAll('.sb-link[data-v], #tabs button[data-v]').forEach(b=>{
+      const v = b.dataset.v;
+      if(v==='home') { b.style.display=''; return; }
+      b.style.display = canView(v) ? '' : 'none';
+    });
+  }
+  window.applyPerms = applyPerms;
+
+  // Auto-redirect to home after login + apply perms
+  const _origLogin2 = window.doLogin;
+  window.doLogin = async function(e){
+    const r = await _origLogin2.call(this, e);
+    setTimeout(()=>{
+      try{ applyPerms(); }catch(_){}
+      try{ if(typeof showView==='function') showView('home'); }catch(_){}
+    }, 250);
+    return r;
+  };
+
+  // Apply perms whenever a view is shown
+  const _origShowView = window.showView;
+  window.showView = function(name){
+    // If not allowed, fallback to home
+    if(name!=='home' && typeof canView==='function' && !canView(name)) name='home';
+    return _origShowView.call(this, name);
+  };
+
+  // CEO-only online indicator on Home
+  const _origRenderHome = window.renderHome;
+  window.renderHome = function(){
+    const el = document.getElementById('home-users-list'); if(!el) return;
+    const presence = (function(){ try{return JSON.parse(localStorage.getItem('solar-presence-v1')||'{}');}catch(e){return {};} })();
+    const users = (function(){ try{return JSON.parse(localStorage.getItem('solar-users-v1')||'[]');}catch(e){return [];} })();
+    const isOnlineLocal = (n)=>{ const r=presence[n]; return r && (Date.now()-(r.at||0))<25000; };
+    const masterName = 'scopesolar';
+    const rows = [];
+    rows.push({ name: masterName, role: 'CEO / Admin', isCEO:true, online: isOnlineLocal(masterName) });
+    users.forEach(u=> rows.push({ name: u.user, role: 'User', isCEO:false, online:false }));
+    el.innerHTML = rows.map(r=>`
+      <div class="user-row" style="justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:10px;flex:1">
+          ${r.isCEO?`<span style="width:10px;height:10px;border-radius:50%;background:${r.online?'#10b981':'#64748b'};box-shadow:${r.online?'0 0 8px #10b981':'none'};flex-shrink:0"></span>`:'<span style="width:10px"></span>'}
+          <div class="u">${(r.name||'').replace(/[<>&]/g,'')} ${r.isCEO?'<span style="color:#fbbf24;font-size:10px;font-weight:700">★ CEO</span>':''}</div>
+          ${r.isCEO?`<span style="color:${r.online?'#10b981':'var(--muted)'};font-size:12px;font-weight:600">${r.online?'● Online':'○ Offline'}</span>`:''}
+        </div>
+      </div>
+    `).join('') || '<div class="empty2">No users yet.</div>';
+  };
+
+  // Sync missing projects FROM inspection records INTO project details
+  function syncProjectsFromInspections(){
+    try{
+      const sites = JSON.parse(localStorage.getItem('solar-inspection-sites-v1')||'[]');
+      const projs = JSON.parse(localStorage.getItem('solar-projects-v1')||'[]');
+      const existing = new Set(projs.map(p=>(p.location||'').trim().toLowerCase()));
+      let nextSr = projs.reduce((m,p)=>Math.max(m,Number(p.sr)||0),0);
+      let added = 0;
+      sites.forEach(s=>{
+        const nm = (s.name||'').trim();
+        if(!nm) return;
+        if(existing.has(nm.toLowerCase())) return;
+        nextSr++;
+        projs.push({sr:nextSr, client:'(from inspection)', location:nm, capacity:'-'});
+        added++;
+      });
+      if(added){
+        localStorage.setItem('solar-projects-v1', JSON.stringify(projs));
+        console.log('Synced', added, 'missing projects from inspection records');
+        if(typeof renderProjects==='function') renderProjects();
+      }
+    }catch(e){ console.warn('syncProjectsFromInspections failed', e); }
+  }
+  window.syncProjectsFromInspections = syncProjectsFromInspections;
+
+  // Clear chat (Scope Solar Management) — like WhatsApp clear conversation
+  window.clearTeamChat = function(){
+    if(!confirm('Clear all chat messages? This will remove the conversation for everyone.')) return;
+    localStorage.setItem('solar-team-msgs-v1', JSON.stringify([]));
+    if(typeof renderTeam==='function') renderTeam();
+  };
+
+  // Cancel voice rec on very short tap (prevent accidental sends)
+  const _origToggle = window.toggleTmRec;
+  let _recStartTime = 0;
+  window.toggleTmRec = async function(){
+    if(window.tmMediaRec && window.tmMediaRec.state==='recording'){
+      // If user taps within 350ms of starting, cancel
+      if(Date.now()-_recStartTime < 350){
+        window._tmRecCancel = true;
+      }
+    } else {
+      _recStartTime = Date.now();
+    }
+    return _origToggle.apply(this, arguments);
+  };
+
+  // Mirror notif-dot updates to header copy too
+  const _origRefresh = window.refreshNotifDot;
+  if(_origRefresh){
+    window.refreshNotifDot = function(){
+      _origRefresh();
+      const a=document.getElementById('notif-dot'), b=document.getElementById('notif-dot-hdr');
+      if(a && b){ b.textContent=a.textContent; b.style.display=a.style.display; }
+    };
+  }
+
+  // Run perms + sync on first load after a short delay
+  function init(){
+    try{ syncProjectsFromInspections(); }catch(_){}
+    try{ applyPerms(); }catch(_){}
+    // If already authenticated, jump to home page (default landing)
+    try{
+      if(sessionStorage.getItem('solar-session-v1')==='1'){
+        if(!location.hash || location.hash==='#'){ if(typeof showView==='function') showView('home'); }
+      }
+    }catch(_){}
+  }
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded', ()=>setTimeout(init,300));
+  } else { setTimeout(init,300); }
+})();
+</script>
+
 </body></html>
