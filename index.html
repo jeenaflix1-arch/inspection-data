@@ -2523,4 +2523,267 @@ refreshNotifDot();
 })();
 </script>
 
+
+<script>
+/* ============ TRACKER_13: Reliable sync, real-time chat, clear-chat & delete-user fixes ============ */
+(function(){
+  const KEYS = [
+    "solar-inspection-sites-v1","solar-users-v1","solar-projects-v1",
+    "solar-complaints-v1","solar-plans-v1","solar-inspectplans-v1",
+    "solar-team-msgs-v1","solar-notifs-v1","solar-presence-v1","solar-accounts-v1",
+    "solar-users-deleted-v1","solar-team-cleared-at-v1","solar-team-hidden-v1"
+  ];
+  const TKEY = "solar-team-msgs-v1";
+  const UKEY = "solar-users-v1";
+  const UDEL = "solar-users-deleted-v1";
+  const TCLR = "solar-team-cleared-at-v1";
+  const MTKEY = "solar-mtimes-v1";
+  const API   = (window.__API_BASE||"") + "/api/public/jsonblob";
+
+  function getMtimes(){ try{return JSON.parse(localStorage.getItem(MTKEY)||"{}");}catch(_){return {};} }
+  function setMtimes(m){ localStorage.setItem(MTKEY, JSON.stringify(m)); }
+  function bump(key){ const m=getMtimes(); m[key]=Date.now(); setMtimes(m); }
+
+  const _set = Storage.prototype.setItem;
+  const _rm  = Storage.prototype.removeItem;
+  let pulling = false;
+  Storage.prototype.setItem = function(k,v){
+    _set.call(this, k, v);
+    if(this===localStorage && KEYS.includes(k) && !pulling){ bump(k); schedulePush(40); }
+  };
+  Storage.prototype.removeItem = function(k){
+    _rm.call(this, k);
+    if(this===localStorage && KEYS.includes(k) && !pulling){ bump(k); schedulePush(40); }
+  };
+
+  let pushTimer=null, pushing=false, pushAgain=false;
+  function schedulePush(ms){ clearTimeout(pushTimer); pushTimer=setTimeout(pushNow, ms||40); }
+  async function pushNow(){
+    if(pushing){ pushAgain=true; return; }
+    pushing = true;
+    try{
+      let cloud = {};
+      try{ const r=await fetch(API,{cache:"no-store"}); if(r.ok) cloud=await r.json()||{}; }catch(_){}
+      const merged = mergeBlobs(cloud, snapshotLocal());
+      await fetch(API, {method:"PUT", headers:{"Content-Type":"application/json","Accept":"application/json"}, body: JSON.stringify(merged)});
+      applyToLocal(merged);
+    }catch(_){}
+    pushing = false;
+    if(pushAgain){ pushAgain=false; schedulePush(50); }
+  }
+  window.__pushNow = pushNow;
+
+  function snapshotLocal(){
+    const o = { __mtimes: getMtimes() };
+    for(const k of KEYS){
+      const v = localStorage.getItem(k);
+      if(v==null) continue;
+      try{ o[k] = JSON.parse(v); }catch(_){ o[k] = v; }
+    }
+    return o;
+  }
+
+  function mergeBlobs(cloud, local){
+    cloud = cloud || {}; local = local || {};
+    const out = {};
+    const cm = (cloud.__mtimes)||{}, lm = (local.__mtimes)||{};
+    const mt = {};
+    for(const k of KEYS){
+      const has_c = cloud[k]!==undefined, has_l = local[k]!==undefined;
+      if(!has_c && !has_l) continue;
+
+      if(k===TKEY){
+        const a = Array.isArray(cloud[k])?cloud[k]:[];
+        const b = Array.isArray(local[k])?local[k]:[];
+        const map = new Map();
+        const put = m => {
+          if(!m||!m.id) return;
+          const prev = map.get(m.id);
+          if(!prev){ map.set(m.id, m); return; }
+          if(m.deleted && !prev.deleted){ map.set(m.id, m); return; }
+          if(prev.deleted && !m.deleted) return;
+          if((m.deletedAt||m.at||'') > (prev.deletedAt||prev.at||'')) map.set(m.id, m);
+        };
+        a.forEach(put); b.forEach(put);
+        const cClr = cloud[TCLR]||0, lClr = local[TCLR]||0;
+        const clearedAt = Math.max(Number(cClr)||0, Number(lClr)||0);
+        let arr = Array.from(map.values());
+        if(clearedAt){ arr = arr.filter(m => new Date(m.at||0).getTime() > clearedAt); }
+        arr.sort((x,y)=> (x.at||'').localeCompare(y.at||''));
+        out[k] = arr;
+        mt[k] = Math.max(cm[k]||0, lm[k]||0);
+        continue;
+      }
+
+      if(k===UKEY){
+        const a = Array.isArray(cloud[k])?cloud[k]:[];
+        const b = Array.isArray(local[k])?local[k]:[];
+        const tomb = {};
+        const tCloud = Array.isArray(cloud[UDEL])?cloud[UDEL]:[];
+        const tLocal = Array.isArray(local[UDEL])?local[UDEL]:[];
+        [...tCloud, ...tLocal].forEach(t=>{ if(!t||!t.user) return; tomb[t.user]=Math.max(tomb[t.user]||0, Number(t.at)||0); });
+        const cMt = cm[k]||0, lMt = lm[k]||0;
+        const newer = lMt>=cMt ? b : a;
+        const older = lMt>=cMt ? a : b;
+        const byUser = new Map();
+        older.forEach(u=>{ if(u&&u.user) byUser.set(u.user,u); });
+        newer.forEach(u=>{ if(u&&u.user) byUser.set(u.user,u); });
+        const surviving = [];
+        for(const [name,u] of byUser.entries()){
+          const tAt = tomb[name]||0;
+          if(tAt && (Number(u.__createdAt)||0) <= tAt){ continue; }
+          surviving.push(u);
+        }
+        out[k] = surviving;
+        mt[k] = Math.max(cMt, lMt);
+        continue;
+      }
+
+      if(k===UDEL){
+        const a = Array.isArray(cloud[k])?cloud[k]:[];
+        const b = Array.isArray(local[k])?local[k]:[];
+        const seen = new Map();
+        [...a,...b].forEach(t=>{ if(!t||!t.user) return; const cur=seen.get(t.user)||0; if((t.at||0)>cur) seen.set(t.user, t.at||0); });
+        out[k] = Array.from(seen, ([user,at])=>({user,at}));
+        mt[k] = Math.max(cm[k]||0, lm[k]||0);
+        continue;
+      }
+
+      if(k===TCLR){
+        out[k] = Math.max(Number(cloud[k])||0, Number(local[k])||0);
+        mt[k] = Math.max(cm[k]||0, lm[k]||0);
+        continue;
+      }
+
+      const cMt = cm[k]||0, lMt = lm[k]||0;
+      if(cMt>lMt){ out[k] = cloud[k]; mt[k]=cMt; }
+      else      { out[k] = has_l?local[k]:cloud[k]; mt[k]=lMt||cMt; }
+    }
+    out.__mtimes = mt;
+    return out;
+  }
+
+  function applyToLocal(merged){
+    pulling = true;
+    try{
+      const curMt = getMtimes();
+      const newMt = merged.__mtimes||{};
+      let touched = false;
+      for(const k of KEYS){
+        if(merged[k]===undefined) continue;
+        const enc = typeof merged[k]==="string" ? merged[k] : JSON.stringify(merged[k]);
+        if(localStorage.getItem(k) !== enc){ _set.call(localStorage, k, enc); touched = true; }
+      }
+      _set.call(localStorage, MTKEY, JSON.stringify({...curMt, ...newMt}));
+      if(touched) softRerender();
+    } finally { pulling = false; }
+  }
+
+  function softRerender(){
+    try{
+      if(typeof renderTeam==='function') renderTeam();
+      if(typeof renderUsers==='function') renderUsers();
+      if(typeof renderHome==='function') renderHome();
+    }catch(_){}
+  }
+
+  let pullInflight = false;
+  async function pullNow(){
+    if(pullInflight) return;
+    pullInflight = true;
+    try{
+      const r = await fetch(API, {cache:"no-store"});
+      if(!r.ok) return;
+      const cloud = await r.json();
+      if(!cloud||typeof cloud!=='object') return;
+      const merged = mergeBlobs(cloud, snapshotLocal());
+      applyToLocal(merged);
+    }catch(_){}
+    finally{ pullInflight = false; }
+  }
+  window.__pullNow = pullNow;
+
+  setInterval(pullNow, 1200);
+  window.addEventListener('focus', pullNow);
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) pullNow(); });
+  setTimeout(pullNow, 100);
+
+  // Send: push immediately
+  const _origSend = window.sendTeamMsg;
+  window.sendTeamMsg = function(){
+    const ret = _origSend && _origSend.apply(this, arguments);
+    bump(TKEY); pushNow();
+    return ret;
+  };
+
+  // Clear chat: tombstone + push
+  window.clearTeamChat = function(){
+    if(!confirm('Clear all chat messages? This will remove the conversation for everyone.')) return;
+    const now = Date.now();
+    localStorage.setItem(TCLR, String(now));
+    localStorage.setItem(TKEY, '[]');
+    bump(TCLR); bump(TKEY);
+    if(typeof renderTeam==='function') renderTeam();
+    pushNow();
+  };
+
+  // Delete user: tombstone + push
+  function getUsersArr(){ try{return JSON.parse(localStorage.getItem(UKEY))||[];}catch(_){return [];} }
+  function setUsersArr(a){ localStorage.setItem(UKEY, JSON.stringify(a)); bump(UKEY); }
+  function addTombstone(name){
+    let arr=[]; try{ arr=JSON.parse(localStorage.getItem(UDEL)||'[]'); }catch(_){}
+    const at = Date.now();
+    const i = arr.findIndex(t=>t.user===name);
+    if(i>=0) arr[i].at = at; else arr.push({user:name, at});
+    localStorage.setItem(UDEL, JSON.stringify(arr));
+    bump(UDEL);
+  }
+  window.rmUser = function(i){
+    if(!confirm('Remove this user?')) return;
+    const a = getUsersArr();
+    const u = a[i]; if(!u) return;
+    addTombstone(u.user);
+    a.splice(i,1); setUsersArr(a);
+    if(typeof renderUsers==='function') renderUsers();
+    if(typeof renderHome==='function') renderHome();
+    pushNow();
+  };
+
+  // Add user: stamp __createdAt
+  const _origAddUser = window.addUser;
+  window.addUser = function(){
+    const ret = _origAddUser && _origAddUser.apply(this, arguments);
+    const after = getUsersArr();
+    let changed = false;
+    after.forEach(u=>{ if(!u.__createdAt){ u.__createdAt = Date.now(); changed = true; } });
+    if(changed) setUsersArr(after);
+    pushNow();
+    return ret;
+  };
+
+  // Delete-for-everyone: push now
+  const _origDelEvery = window.deleteMsgForEveryone;
+  if(_origDelEvery){
+    window.deleteMsgForEveryone = function(id){
+      const ret = _origDelEvery.apply(this, arguments);
+      bump(TKEY); pushNow();
+      return ret;
+    };
+  }
+
+  // Login: pull cloud first so users created on other device are visible
+  const _origLogin = window.doLogin;
+  window.doLogin = async function(e){
+    if(e && e.preventDefault) e.preventDefault();
+    const errEl = document.getElementById('li-err');
+    if(errEl) errEl.textContent = 'Signing in...';
+    try{ await pullNow(); }catch(_){}
+    if(errEl) errEl.textContent = '';
+    return _origLogin && _origLogin.call(this, e);
+  };
+
+  console.log('[tracker_13] reliable sync installed');
+})();
+</script>
+
 </body></html>
