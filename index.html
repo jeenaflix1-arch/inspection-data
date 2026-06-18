@@ -131,9 +131,88 @@ label.field input{width:100%}
 
 *{ -webkit-user-select:none; -moz-user-select:none; user-select:none; }
 input,textarea{ -webkit-user-select:text; user-select:text; }
+
+/* Login overlay */
+#login-overlay{position:fixed;inset:0;z-index:9999;background:linear-gradient(180deg,#06101f,#0a1730);display:grid;place-items:center;padding:20px}
+.login-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:28px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.login-card h2{margin:0 0 4px;background:linear-gradient(135deg,#fbbf24,#f97316);-webkit-background-clip:text;background-clip:text;color:transparent;font-size:22px}
+.login-card .sub{margin-bottom:18px}
+.login-card label{display:block;margin-bottom:12px}
+.login-card label span{display:block;color:var(--muted);font-size:12px;margin-bottom:5px}
+.login-card input{width:100%;padding:11px 13px;background:var(--secondary);border:1px solid var(--border);border-radius:10px;color:var(--fg);font:inherit;outline:none}
+.login-card input:focus{border-color:var(--primary)}
+.login-card .err{color:#fca5a5;font-size:12px;min-height:16px;margin:4px 0 10px}
+.login-card .btn{width:100%;padding:12px}
+.user-row{display:flex;gap:8px;align-items:center;padding:8px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;background:var(--secondary)}
+.user-row .u{flex:1;font-weight:600}
+.user-row .p{color:var(--muted);font-size:11px;font-family:ui-monospace,monospace}
+.topbar-user{display:flex;align-items:center;gap:8px;margin-left:8px;font-size:12px;color:var(--muted)}
+
+/* ===== Tabs & new sections ===== */
+.tabs{display:flex;gap:4px;background:var(--secondary);border:1px solid var(--border);border-radius:12px;padding:4px;margin:14px auto 0;max-width:1400px;overflow-x:auto}
+.tabs button{flex:1;min-width:120px;padding:9px 12px;border-radius:9px;border:0;background:transparent;color:var(--muted);cursor:pointer;font:inherit;font-size:12.5px;font-weight:600;white-space:nowrap}
+.tabs button.active{background:var(--card);color:var(--fg);box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.view{display:none}
+.view.active{display:block}
+.grid-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.pcard{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px}
+.pcard .sr{display:inline-block;background:var(--secondary);color:var(--primary2);font-weight:700;border-radius:6px;padding:2px 8px;font-size:11px;margin-bottom:6px}
+.pcard h4{margin:0 0 4px;font-size:14px}
+.pcard .loc{color:var(--muted);font-size:12px;line-height:1.4}
+.pcard .cap{margin-top:8px;font-size:11.5px;color:var(--primary2);font-weight:600}
+.list-item{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px;cursor:pointer}
+.list-item:hover{border-color:var(--primary)}
+.list-item .lh{display:flex;justify-content:space-between;gap:8px;align-items:start}
+.list-item .lt{font-weight:700}
+.list-item .ls{color:var(--muted);font-size:12px;margin-top:3px}
+.list-item .desc{margin-top:8px;color:#c6d3eb;font-size:13px;white-space:pre-wrap}
+.badge.open{background:var(--danger-bg);color:#fca5a5}
+.badge.resolved{background:var(--success-bg);color:#6ee7b7}
+.badge.team{background:rgba(251,191,36,.15);color:#fcd34d;border:1px solid rgba(251,191,36,.35)}
+select,textarea{background:var(--secondary);border:1px solid var(--border);color:var(--fg);padding:8px 10px;border-radius:8px;font:inherit;font-size:12.5px;outline:none;width:100%}
+textarea{min-height:90px;resize:vertical}
+.empty2{padding:30px;text-align:center;color:var(--muted);background:var(--card);border:1px dashed var(--border);border-radius:12px}
+.chip{display:inline-block;background:var(--secondary);border:1px solid var(--border);padding:3px 8px;border-radius:6px;font-size:11px;margin:2px 3px 0 0;color:var(--muted)}
+.chip.civil{color:#93c5fd;border-color:rgba(147,197,253,.4)}
+.chip.fab{color:#fcd34d;border-color:rgba(252,211,77,.4)}
+.chip.insp{color:#6ee7b7;border-color:rgba(110,231,183,.4)}
+.head-row{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.head-row h2{margin:0;font-size:18px}
+.search input{font-size:13px}
+@media(max-width:760px){.tabs{margin:10px 12px 0;border-radius:10px}.tabs button{min-width:100px;font-size:12px;padding:8px 10px}}
+
 </style>
 </head>
 <body>
+
+<!-- Login overlay -->
+<div id="login-overlay">
+  <form class="login-card" onsubmit="doLogin(event)">
+    <h2>SCOPE SOLAR</h2>
+    <div class="sub">Sign in to continue</div>
+    <label><span>Username</span><input id="li-user" autocomplete="off" autocapitalize="off" spellcheck="false" required/></label>
+    <label><span>Password</span><input id="li-pass" type="password" required/></label>
+    <div class="err" id="li-err"></div>
+    <button class="btn" type="submit">Sign in</button>
+  </form>
+</div>
+
+<!-- Users modal -->
+<div class="modal" id="m-users"><div class="backdrop" onclick="closeUsers()"></div>
+  <div class="dialog"><div class="dhead"><div><h2>Manage Access</h2><div class="sub">Add or remove user accounts</div></div>
+    <button class="iconbtn" style="margin-left:auto" onclick="closeUsers()">✕</button></div>
+    <div class="dbody">
+      <div id="users-list"></div>
+      <div style="border-top:1px solid var(--border);margin:14px 0 10px"></div>
+      <label class="field"><span>New username</span><input type="text" id="nu-user" autocomplete="off"/></label>
+      <label class="field"><span>New password</span>
+        <div style="display:flex;gap:6px"><input type="text" id="nu-pass" style="flex:1"/><button type="button" class="btn ghost" onclick="genPass()">Generate</button></div>
+      </label>
+    </div>
+    <div class="dfoot"><button class="btn ghost" onclick="closeUsers()">Close</button><button class="btn" onclick="addUser()">Add user</button></div>
+  </div>
+</div>
+
 <header><div class="wrap brand">
   <div class="logo"><img src="data:image/webp;base64,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" alt="Scope Solar logo"/></div>
   <div class="brand-text">
@@ -147,7 +226,16 @@ input,textarea{ -webkit-user-select:text; user-select:text; }
   </div>
 </div></header>
 
-<main>
+<nav class="tabs" id="tabs">
+  <button data-v="inspections" class="active">🗓 Inspections</button>
+  <button data-v="projects">📋 Project Details</button>
+  <button data-v="complaints">⚠ Complaints</button>
+  <button data-v="plan">📆 Daily Plan</button>
+  <button data-v="inspectplan">🔍 Daily Inspection</button>
+</nav>
+
+
+<main class="view active" id="view-inspections" data-v="inspections">
   <div class="panel">
     <div class="toolbar">
       <div class="search"><input id="q" placeholder="Search by site name, area, block..." /></div>
@@ -158,6 +246,8 @@ input,textarea{ -webkit-user-select:text; user-select:text; }
         <button class="pill" data-f="upcoming">Upcoming</button>
       </div>
       <button class="btn" onclick="openAdd()">+ Add Site</button>
+      <button class="btn ghost" onclick="openUsers()" title="Manage user access">👥 Users</button>
+      <button class="btn ghost" onclick="doLogout()" title="Sign out">⎋ Logout</button>
     </div>
     <div class="legend">
       <span><i class="sw done"></i>Completed</span>
@@ -175,6 +265,137 @@ input,textarea{ -webkit-user-select:text; user-select:text; }
   </div>
   <div class="cards" id="cards"></div>
 </main>
+
+
+<main class="view" id="view-projects" data-v="projects">
+  <div class="panel">
+    <div class="head-row">
+      <h2>All Projects <span class="sub">(<span id="pj-count">0</span>)</span></h2>
+      <div class="search" style="max-width:340px"><input id="pj-q" placeholder="Search client, location..." /></div>
+      <button class="btn" onclick="openAddProject()">+ Add Project</button>
+    </div>
+    <div id="pj-grid" class="grid-cards"></div>
+  </div>
+</main>
+
+<main class="view" id="view-complaints" data-v="complaints">
+  <div class="panel">
+    <div class="head-row">
+      <h2>Complaints</h2>
+      <button class="btn" onclick="openAddComplaint()">+ New Complaint</button>
+    </div>
+    <div id="cp-list"></div>
+  </div>
+</main>
+
+<main class="view" id="view-plan" data-v="plan">
+  <div class="panel">
+    <div class="head-row">
+      <h2>Daily Plan — Civil & Fabricator Teams</h2>
+      <input type="date" id="pl-date" />
+      <button class="btn" onclick="openAddPlan()">+ Add Plan</button>
+    </div>
+    <div class="sub" style="margin-bottom:10px">Assign which site each team works on, and which new sites need a survey visit.</div>
+    <div id="pl-list"></div>
+  </div>
+</main>
+
+<main class="view" id="view-inspectplan" data-v="inspectplan">
+  <div class="panel">
+    <div class="head-row">
+      <h2>Daily Inspection Plan</h2>
+      <input type="date" id="ip-date" />
+      <button class="btn" onclick="openAddInspect()">+ Add Inspection</button>
+    </div>
+    <div class="sub" style="margin-bottom:10px">Assign which inspector visits which site today.</div>
+    <div id="ip-list"></div>
+  </div>
+</main>
+
+<!-- Add Project modal -->
+<div class="modal" id="m-addproj"><div class="backdrop" onclick="closeAddProject()"></div>
+  <div class="dialog"><div class="dhead"><div><h2>Add Project</h2><div class="sub">Adds to Project Details & Inspection Records</div></div>
+    <button class="iconbtn" style="margin-left:auto" onclick="closeAddProject()">✕</button></div>
+    <div class="dbody">
+      <label class="field"><span>Client name</span><input type="text" id="ap-client"/></label>
+      <label class="field"><span>Location</span><input type="text" id="ap-location"/></label>
+      <label class="field"><span>System capacity (kW)</span><input type="text" id="ap-cap" placeholder="e.g. 10"/></label>
+    </div>
+    <div class="dfoot"><button class="btn ghost" onclick="closeAddProject()">Cancel</button><button class="btn" onclick="doAddProject()">Add</button></div>
+  </div>
+</div>
+
+<!-- Complaint modal -->
+<div class="modal" id="m-cp"><div class="backdrop" onclick="closeCp()"></div>
+  <div class="dialog"><div class="dhead"><div><h2 id="cp-title">Complaint</h2><div class="sub">Details</div></div>
+    <button class="iconbtn" style="margin-left:auto" onclick="closeCp()">✕</button></div>
+    <div class="dbody">
+      <label class="field"><span>Project / Site</span><select id="cp-site"></select></label>
+      <label class="field"><span>Complainant name</span><input type="text" id="cp-by"/></label>
+      <label class="field"><span>Date</span><input type="date" id="cp-date"/></label>
+      <label class="field"><span>Description</span><textarea id="cp-desc" placeholder="Describe the complaint..."></textarea></label>
+      <label class="field"><span>Status</span>
+        <select id="cp-status"><option value="open">Open</option><option value="resolved">Resolved</option></select>
+      </label>
+    </div>
+    <div class="dfoot">
+      <button class="btn danger" onclick="deleteCp()" id="cp-del" style="display:none">🗑 Delete</button>
+      <button class="btn" onclick="saveCp()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Daily plan modal -->
+<div class="modal" id="m-pl"><div class="backdrop" onclick="closePl()"></div>
+  <div class="dialog"><div class="dhead"><div><h2 id="pl-title">Daily Plan</h2><div class="sub">Team assignment</div></div>
+    <button class="iconbtn" style="margin-left:auto" onclick="closePl()">✕</button></div>
+    <div class="dbody">
+      <label class="field"><span>Date</span><input type="date" id="pl-d"/></label>
+      <label class="field"><span>Site</span><select id="pl-site"></select></label>
+      <label class="field"><span>Visit type</span>
+        <select id="pl-type"><option value="work">Work / Installation</option><option value="survey">Survey visit (new site)</option><option value="followup">Follow-up</option></select>
+      </label>
+      <label class="field"><span>Civil team</span>
+        <select id="pl-civil"><option value="">— none —</option><option>Civil Team A</option><option>Civil Team B</option><option>Civil Team C</option></select>
+      </label>
+      <label class="field"><span>Fabricator team</span>
+        <select id="pl-fab"><option value="">— none —</option><option>Fabricator A</option><option>Fabricator B</option><option>Fabricator C</option><option>Fabricator D</option><option>Fabricator E</option><option>Fabricator F</option><option>Fabricator G</option><option>Fabricator H</option></select>
+      </label>
+      <label class="field"><span>Notes</span><textarea id="pl-notes" placeholder="e.g. Start tomorrow, bring extra rails..."></textarea></label>
+      <div class="field"><span>Voice note (up to 3 min)</span>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--secondary);border:1px solid var(--border);border-radius:12px;padding:10px">
+          <button type="button" class="btn" id="pl-rec-btn" onclick="toggleVoiceRec()">🎙 Record</button>
+          <span id="pl-rec-time" style="color:var(--muted);font-variant-numeric:tabular-nums;min-width:46px">0:00</span>
+          <audio id="pl-voice-audio" controls style="flex:1;min-width:180px;display:none"></audio>
+          <button type="button" class="btn danger" id="pl-voice-del" onclick="clearVoice()" style="display:none">🗑</button>
+        </div>
+      </div>
+    </div>
+    <div class="dfoot">
+      <button class="btn danger" onclick="deletePl()" id="pl-del" style="display:none">🗑 Delete</button>
+      <button class="btn" onclick="savePl()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Daily inspection plan modal -->
+<div class="modal" id="m-ip"><div class="backdrop" onclick="closeIp()"></div>
+  <div class="dialog"><div class="dhead"><div><h2 id="ip-title">Daily Inspection</h2><div class="sub">Inspector assignment</div></div>
+    <button class="iconbtn" style="margin-left:auto" onclick="closeIp()">✕</button></div>
+    <div class="dbody">
+      <label class="field"><span>Date</span><input type="date" id="ip-d"/></label>
+      <label class="field"><span>Site</span><select id="ip-site"></select></label>
+      <label class="field"><span>Inspector</span>
+        <select id="ip-who"><option>Inspector 1</option><option>Inspector 2</option><option>Inspector 3</option><option>Inspector 4</option></select>
+      </label>
+      <label class="field"><span>Notes</span><textarea id="ip-notes" placeholder="Specific checks, time window..."></textarea></label>
+    </div>
+    <div class="dfoot">
+      <button class="btn danger" onclick="deleteIp()" id="ip-del" style="display:none">🗑 Delete</button>
+      <button class="btn" onclick="saveIp()">Save</button>
+    </div>
+  </div>
+</div>
 
 <!-- Site drawer -->
 <div class="modal" id="m-site"><div class="backdrop" onclick="closeSite()"></div>
@@ -395,6 +616,343 @@ document.addEventListener('dragstart',e=>e.preventDefault());
 document.addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(e.key==='F12'){e.preventDefault();return;}if((e.ctrlKey||e.metaKey)&&e.shiftKey&&['i','j','c'].includes(k)){e.preventDefault();return;}if((e.ctrlKey||e.metaKey)&&['u','s','p'].includes(k)){e.preventDefault();return;}});
 (function(){let w=0;setInterval(()=>{const o=(window.outerWidth-window.innerWidth>180)||(window.outerHeight-window.innerHeight>180);if(o&&!w){w=1;document.body.innerHTML='<div style="display:grid;place-items:center;height:100vh;font:600 18px system-ui;color:#fbbf24;background:#0a1730;text-align:center;padding:20px">Access blocked.<br><span style=\"font-size:13px;color:#9bb3d9;font-weight:400;margin-top:8px;display:block\">Developer tools are not allowed on this page.</span></div>';}},1000);})();
 
-render();
+/* ===== Auth / Users ===== */
+const MASTER = {user:"scopesolar", pass:"@1241993"};
+const UKEY = "solar-users-v1";
+const SKEY = "solar-session-v1";
+function getUsers(){try{return JSON.parse(localStorage.getItem(UKEY))||[];}catch(e){return [];}}
+function saveUsers(u){localStorage.setItem(UKEY,JSON.stringify(u));}
+function isAuthed(){return sessionStorage.getItem(SKEY)==="1";}
+function setAuthed(v){if(v)sessionStorage.setItem(SKEY,"1");else sessionStorage.removeItem(SKEY);}
+function doLogin(e){
+  e.preventDefault();
+  const u=document.getElementById("li-user").value.trim();
+  const p=document.getElementById("li-pass").value;
+  const ok=(u===MASTER.user&&p===MASTER.pass)||getUsers().some(x=>x.user===u&&x.pass===p);
+  if(!ok){document.getElementById("li-err").textContent="Invalid username or password";return;}
+  setAuthed(true);
+  document.getElementById("login-overlay").style.display="none";
+  document.getElementById("li-pass").value="";
+  document.getElementById("li-err").textContent="";
+  render();
+}
+function doLogout(){setAuthed(false);location.reload();}
+function openUsers(){renderUsers();document.getElementById("m-users").classList.add("open");}
+function closeUsers(){document.getElementById("m-users").classList.remove("open");}
+function renderUsers(){
+  const list=document.getElementById("users-list");
+  const u=getUsers();
+  let html=`<div class="user-row"><div class="u">${MASTER.user} <span style="color:#fbbf24;font-size:10px">(master)</span></div><div class="p">••••••</div></div>`;
+  html+=u.map((x,i)=>`<div class="user-row"><div class="u">${escapeHtml(x.user)}<div class="p">${escapeHtml(x.pass)}</div></div><button class="iconbtn" title="Remove" onclick="rmUser(${i})">🗑</button></div>`).join("");
+  if(!u.length)html+=`<div class="sub" style="text-align:center;padding:6px">No additional users yet</div>`;
+  list.innerHTML=html;
+}
+function genPass(){
+  const c="ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+  let s="";for(let i=0;i<10;i++)s+=c[Math.floor(Math.random()*c.length)];
+  document.getElementById("nu-pass").value=s;
+}
+function addUser(){
+  const u=document.getElementById("nu-user").value.trim();
+  const p=document.getElementById("nu-pass").value.trim();
+  if(!u||!p){alert("Enter username and password");return;}
+  if(u===MASTER.user||getUsers().some(x=>x.user===u)){alert("Username already exists");return;}
+  const arr=getUsers();arr.push({user:u,pass:p});saveUsers(arr);
+  document.getElementById("nu-user").value="";document.getElementById("nu-pass").value="";
+  renderUsers();
+}
+function rmUser(i){if(!confirm("Remove this user?"))return;const a=getUsers();a.splice(i,1);saveUsers(a);renderUsers();}
+
+if(isAuthed()){
+  document.getElementById("login-overlay").style.display="none";
+  render();
+}else{
+  setTimeout(()=>document.getElementById("li-user").focus(),50);
+}
+
+
+/* ===== Project list (171 from Excel) ===== */
+const PROJECTS_SEED = [{"sr": 1, "client": "Pro. Iftikhar Tarar", "location": "86-A PUEHS (26)-E Lahore", "capacity": "15"}, {"sr": 2, "client": "Mr. Muhammad Haseeb", "location": "98-C PC/SH (12)-E", "capacity": "7"}, {"sr": 3, "client": "Zahid Khan", "location": "WAPDA Town Phase I, 110-E", "capacity": "10"}, {"sr": 4, "client": "Tanveer Khalid", "location": "349-J2 WAPDA Town 18 E", "capacity": "12"}, {"sr": 5, "client": "Dr. Ambreen", "location": "58-J Gulberg (12)-S", "capacity": "7"}, {"sr": 6, "client": "Mr. Tahir Abbas", "location": "Mozafer grah multan", "capacity": "8"}, {"sr": 7, "client": "Muhammad Moaz", "location": "06-L-KB Colony Lahore (26)-E", "capacity": "15"}, {"sr": 8, "client": "Muhammad Amir", "location": "184-OSB BTL (14)-E", "capacity": "8"}, {"sr": 9, "client": "Muhammad Imran", "location": "329-A PCSIR Phase-2(18)-E", "capacity": "10"}, {"sr": 10, "client": "Ahmed Raza", "location": "354-A PCSIR Phase-2/18-E", "capacity": "10"}, {"sr": 11, "client": "Adeel Ghous", "location": "338 CC DHA Phase (4) 36-E", "capacity": "20"}, {"sr": 12, "client": "Naeem shb", "location": "3A-3 Johar town, Lahore-26-S", "capacity": "15"}, {"sr": 13, "client": "Ahmed Ijaz", "location": "546-DHA johar Lahore 12-E", "capacity": "7"}, {"sr": 14, "client": "Miss. Alia", "location": "203-A2 Johar town lahore 12-E", "capacity": "10"}, {"sr": 15, "client": "Shahzad Younas", "location": "60-B Tariq Garden Lahore P-(18)-E", "capacity": "10"}, {"sr": 16, "client": "Hamza Khan", "location": "397-C PUEHS, P-(120)-E", "capacity": "11"}, {"sr": 17, "client": "Pro. Dr. Amjad Abbas Magsi", "location": "713-B Faisal town, Lahore (18)-E", "capacity": "10"}, {"sr": 18, "client": "Haider Javeed", "location": "104-Hunza block Iqbal town (P-18)-E", "capacity": "10"}, {"sr": 19, "client": "Mr. Sibt-E-Husnain", "location": "215-Nishtar block Lahore Iqbal town (14)", "capacity": "8"}, {"sr": 20, "client": "Mr. Nadeem sb", "location": "171-H3 Johar town Lahore (18)", "capacity": "10"}, {"sr": 21, "client": "Mr. Shah Meem", "location": "193-Canal Garden Lahore (10)", "capacity": "6"}, {"sr": 22, "client": "Mr. Ikram Khan", "location": "Khan house Sheikhuupura -22", "capacity": "15"}, {"sr": 23, "client": "Youseeb Wali sb", "location": "607 DHA Phase (5) (32)", "capacity": "15"}, {"sr": 24, "client": "Dr. Asim Majeed", "location": "40-B johar town", "capacity": "-"}, {"sr": 25, "client": "Mr. Muhammad Jahangir", "location": "H# 671 -L DHA Phase-6", "capacity": "10"}, {"sr": 26, "client": "Mr. Mehmood Ahmed", "location": "C2-30 ICON Valley", "capacity": "9"}, {"sr": 27, "client": "Tariq Javeed", "location": "LDA 283 (E-22)", "capacity": "10"}, {"sr": 28, "client": "Muhammad Saeed sb", "location": "190 E1 Johar town (18) E", "capacity": "10"}, {"sr": 29, "client": "MS Assort Tech", "location": "MS Assort (35)-E", "capacity": "20"}, {"sr": 30, "client": "Sheraz Bashir sb", "location": "144 E(1) WAPDA Town (18)-S", "capacity": "10"}, {"sr": 31, "client": "Malik Amjad Sb", "location": "63 Nasheman Iqbal", "capacity": "12"}, {"sr": 32, "client": "Dr. Khalid Javeed", "location": "462-A Defence Road", "capacity": "6"}, {"sr": 33, "client": "Muhammad Altaf", "location": "30-C Ghousa-e-Ahbab", "capacity": "15"}, {"sr": 34, "client": "Waleed Ahmad", "location": "290-B-Jubliee town", "capacity": "15"}, {"sr": 35, "client": "Malik Muhammad Siddique", "location": "575 DHA Phase-8", "capacity": "15"}, {"sr": 36, "client": "Sohail Khan", "location": "72-B Gulberg-(3)", "capacity": "20"}, {"sr": 37, "client": "Mr. Muhammad Faheem", "location": "5-B, street 58 Friends colony", "capacity": "15"}, {"sr": 38, "client": "Qari Muhammad Ibrahim", "location": "Madrisa Arabia alkayar 93-Ali Block Awan town", "capacity": "15"}, {"sr": 39, "client": "Muhammad Hassam", "location": "146-Jasmine Block Al-Jaleel Garden Lahore", "capacity": "8"}, {"sr": 40, "client": "Mian Israr Ul Haq", "location": "8-H Lzmir town, lahore", "capacity": "8"}, {"sr": 41, "client": "Raza Nawaz", "location": "309-A3 johar town lahore", "capacity": "8"}, {"sr": 42, "client": "Yasir Riaz", "location": "H# 365 EE DHA Phase-04", "capacity": "11"}, {"sr": 43, "client": "Hassan Aftab Baig", "location": "37- Nasheman e Iqbal", "capacity": "15"}, {"sr": 44, "client": "Malik Ikhlaq Awan", "location": "251-A Banker Society", "capacity": "15"}, {"sr": 45, "client": "Haji Muhammad Saeed", "location": "1232-L DHA Phase- (06)", "capacity": "15"}, {"sr": 46, "client": "Naveed Khalid", "location": "214 H3 johar town", "capacity": "8"}, {"sr": 47, "client": "Ahsan Bhutta", "location": "20-B Faisal town", "capacity": "10"}, {"sr": 48, "client": "Dr. Waleed Ahmad", "location": "151 Canal View", "capacity": "15"}, {"sr": 49, "client": "Malik Muhammad Imran", "location": "636_A LDA Lahore", "capacity": "12"}, {"sr": 50, "client": "Yasir Amil Khan", "location": "109_E1 Canal Garden", "capacity": "20"}, {"sr": 51, "client": "Yasir Hanif", "location": "5/21 New Garden town", "capacity": "15"}, {"sr": 52, "client": "Muhammad Salik", "location": "437-K Model town", "capacity": "15"}, {"sr": 53, "client": "Taimoor Zafar", "location": "301/1 DHA Rahbar", "capacity": "7"}, {"sr": 54, "client": "Sheikh Wahabullah", "location": "657-R1 Johar town", "capacity": "10"}, {"sr": 55, "client": "Ali Husnain Buttar", "location": "142-E Mohafiz town", "capacity": "10"}, {"sr": 56, "client": "Muhammad Danish", "location": "33-A1_Sarwar Road Lahore cant", "capacity": "18"}, {"sr": 57, "client": "Miss Amara Jamshaid", "location": "286-K3 WAPDA town", "capacity": "10"}, {"sr": 58, "client": "Waqas Habib", "location": "58 G-4 Johar town", "capacity": "6"}, {"sr": 59, "client": "Chaudhry Anis", "location": "167-A1 Township", "capacity": "10+6"}, {"sr": 60, "client": "Sheikh Bilal Ahmad", "location": "23-F2 WAPDA town", "capacity": "10"}, {"sr": 61, "client": "Abdul Wasay", "location": "430-J-LDA Avenue-01", "capacity": "15"}, {"sr": 62, "client": "Sheikh Kashif Mehmood", "location": "1017-C Canal View", "capacity": "30"}, {"sr": 63, "client": "Sheikh Asif Ali", "location": "StepIN Shoes Factory", "capacity": "100"}, {"sr": 64, "client": "Shahzad Ul Rehman", "location": "Alhafeez Garden", "capacity": "10"}, {"sr": 65, "client": "Mr. Usama Khan", "location": "201-N DHA Phase 1", "capacity": "10"}, {"sr": 66, "client": "Khawaja Zaigham Feroz", "location": "102-C AWT2", "capacity": "15"}, {"sr": 67, "client": "Sheikh Muhammad Arif", "location": "136-R Johar town", "capacity": "15"}, {"sr": 68, "client": "Muhammad Sajjad", "location": "H# 03 Tayyaba Homes", "capacity": "5"}, {"sr": 69, "client": "Mr. Sikandar", "location": "Sikandar Book center", "capacity": "15"}, {"sr": 70, "client": "Mr. Asim Masood Khan", "location": "23/A/2 Education Town Lahore", "capacity": "11.6"}, {"sr": 71, "client": "Mr. Sheikh Asim Farooq", "location": "Jubilee Town 383-A Lahore", "capacity": "10"}, {"sr": 72, "client": "Mr. Talha Sahab", "location": "H#05 Sami Town Lahore", "capacity": "10"}, {"sr": 73, "client": "Mr. Umer Mateen", "location": "712-U DHA Phase-08 Lahore", "capacity": "15"}, {"sr": 74, "client": "Mr. Ghulam Abbas Khan", "location": "398-E2 Johar Town Lahore", "capacity": "10"}, {"sr": 75, "client": "Mr. Adna Afzal", "location": "169-N1 Izmeer Town Lahore", "capacity": "8"}, {"sr": 76, "client": "Mr. Zahid Khan", "location": "32-B DHA EME Lahore", "capacity": "8"}, {"sr": 77, "client": "Mr. Ch Abdul Sattar", "location": "213-H3 Johar Town Lahore", "capacity": "8"}, {"sr": 78, "client": "Mr. Tariq Rasheed", "location": "461-Mustafabad Lahore", "capacity": "5"}, {"sr": 79, "client": "Mr. Muhammad Ahsan", "location": "398-PUEHS Lahore", "capacity": "10"}, {"sr": 80, "client": "Mr. Imran Asghar", "location": "T-44 LMC Sheikhupura road Lahore", "capacity": "17"}, {"sr": 81, "client": "Mr. Adeel Ahmad", "location": "58-B Small industry Lahore", "capacity": "16.38"}, {"sr": 82, "client": "Mrs. Anila Sadia", "location": "631-Ghaznavi Block Lahore", "capacity": "8"}, {"sr": 83, "client": "Mr. Asad Nisar", "location": "175-B Revenue society Lahore", "capacity": "10"}, {"sr": 84, "client": "Mr. Manzoor Ali", "location": "377-EE Bahira Orchard Lahore", "capacity": "7"}, {"sr": 85, "client": "Mr. Muaaz Shafiq", "location": "Nishat Hospital Lahore", "capacity": "10"}, {"sr": 86, "client": "Mr. Babar Saleh Hayat", "location": "363-B PUEHS Lahore", "capacity": "10"}, {"sr": 87, "client": "Mr. Muhammad Ali", "location": "25-Gulistan-e-raj Lahore", "capacity": "15"}, {"sr": 88, "client": "Mr. Major Khalid Amin", "location": "380-LDA Avenue-01 Lahore", "capacity": "10"}, {"sr": 89, "client": "Mr. Iqbal Fiaz", "location": "232-E Pia Society Lahore", "capacity": "16.24"}, {"sr": 90, "client": "Mr. Abdul Hanan", "location": "845-E Al Kabir Town, Phase-02 Lahore", "capacity": "7"}, {"sr": 91, "client": "Mr. Abuzar Malik", "location": "436-Eden City, Lahore", "capacity": "15"}, {"sr": 92, "client": "Mr. Usman Khawar", "location": "87-K Izmeer Town, Lahore", "capacity": "8"}, {"sr": 93, "client": "Mr. Anwar Iqbal", "location": "36-B Abdalian Society Lahore", "capacity": "15"}, {"sr": 94, "client": "Mr. Hassan Mehmood", "location": "9-E1 Wapda Town Lahore", "capacity": "15"}, {"sr": 95, "client": "Mr. Abdul Rahman", "location": "126-E3 Model Town Lahore", "capacity": "15"}, {"sr": 96, "client": "Mr. Usman", "location": "254-M8 Lake City Lahore", "capacity": "8"}, {"sr": 97, "client": "Mr. Muhammad Amin Wahla", "location": "21-C Hajveri H/S Lahore", "capacity": "10"}, {"sr": 98, "client": "Mr. Umer", "location": "256-SD Askari-09 Lahore", "capacity": "7"}, {"sr": 99, "client": "Mr. Ammad Tariq", "location": "96-A AL-Faisal Town Lahore", "capacity": "8"}, {"sr": 100, "client": "Mr. Usma Iqbal", "location": "859-A Nasheman E-Iqbal Lahore", "capacity": "10"}, {"sr": 101, "client": "Ch. Farooq Mehmood Khaloon", "location": "Dera Khaloon Bedian Road Lahore", "capacity": "15"}, {"sr": 102, "client": "Mr. Muhammad Irfan", "location": "H#56 Shalimar Gulshan Housing Scheme Lahore", "capacity": "10"}, {"sr": 103, "client": "Mr. Waqas Malik", "location": "H#13 Eden City ex, Lahore", "capacity": "15"}, {"sr": 104, "client": "Mr. Muhammad Wasil Khan", "location": "117-D Valencia town Lahore", "capacity": "12"}, {"sr": 105, "client": "Mr. Muhammad Sanaullah", "location": "716-B F2 Johar town Lahore", "capacity": "10"}, {"sr": 106, "client": "Mr. Ahmad Sulman Noor", "location": "41-A1 Gulberg-||| Lahore", "capacity": "15"}, {"sr": 107, "client": "Dr. Saleem Sb", "location": "81-Nishtar Block Bahira Town Lahore", "capacity": "10"}, {"sr": 108, "client": "Mr. Babar", "location": "80-D Jubilee Town, Lahore", "capacity": "10"}, {"sr": 109, "client": "Mr. Ishfaq Babar", "location": "459-2A2 Township, Lahore", "capacity": "10"}, {"sr": 110, "client": "Mr. Irfan Parvaiz", "location": "65-C1 NESPAK Lahore", "capacity": "10"}, {"sr": 111, "client": "Mr. Arshad Hafeez", "location": "245-E1 Johar Town Lahore", "capacity": "10"}, {"sr": 112, "client": "Miss Imama Aslam", "location": "22-B1 P-D Colony Lahore", "capacity": "6"}, {"sr": 113, "client": "Mr. Masood", "location": "172-A Block High Court Society Lahore", "capacity": "5"}, {"sr": 114, "client": "Mr. Umair Mehmood", "location": "19-Shaheen Park Mughal Pura, Lahore", "capacity": "15"}, {"sr": 115, "client": "Mr. Saeed Ahmad", "location": "395-G Gulshan-e-Raj Lahore", "capacity": "15"}, {"sr": 116, "client": "Mr. Ammar Nisar", "location": "E5/44 Rehmania Street Cav. Ground Lahore", "capacity": "10"}, {"sr": 117, "client": "Mr. Abdul Rashid Alam", "location": "20-B Pia Society Lahore", "capacity": "10"}, {"sr": 118, "client": "Mr. Zahid Mehmood", "location": "85-C2 ICON Valley Lahore", "capacity": "Off Grid"}, {"sr": 119, "client": "Mr. Ali Shehzad", "location": "311-M Sabzazar Lahore", "capacity": "12"}, {"sr": 120, "client": "Mr. Bashir Ahmad", "location": "858-A Nasheman-e-Iqbal Lahore", "capacity": "5"}, {"sr": 121, "client": "Mr. Fawad Naeem", "location": "119-Ali Block Bahira Town Lahore", "capacity": "8"}, {"sr": 122, "client": "Mr. Faisal Saeed", "location": "704-F2 Johar Town Lahore", "capacity": "10"}, {"sr": 123, "client": "Mr. Zahid Khurshid Sb", "location": "796-W DHA Phase-07 Lahore", "capacity": "12"}, {"sr": 124, "client": "Mr. Khalid Bahir Sb", "location": "807-G Central Park Lahore", "capacity": "12"}, {"sr": 125, "client": "Mrs. Noshi Latif", "location": "92-B Tariq Garden Lahore", "capacity": "6"}, {"sr": 126, "client": "Mrs. Sumbal Latif", "location": "58-B Tariq Garden Lahore", "capacity": "8"}, {"sr": 127, "client": "Haji Mian Abdul Waheed Sb", "location": "1325-W DHA Phase-07 Lahore", "capacity": "15"}, {"sr": 128, "client": "Mr.Zeeshan Ali Khan", "location": "86-C Judicial Colony phase 2", "capacity": "5"}, {"sr": 129, "client": "Mr. Syed Umair", "location": "446-E Judicial Colony Phase-3 Lahore", "capacity": "10"}, {"sr": 130, "client": "Mr.Hamza", "location": "89-B Nasheman-e- Iqbal  phase 2", "capacity": "6"}, {"sr": 131, "client": "Mr. Ali Raza", "location": "Mohllah Ahmadpura bngla stop muridke", "capacity": "10"}, {"sr": 132, "client": "Mr. Humayoun Awan", "location": "607-Rose Block Park View City", "capacity": "8"}, {"sr": 133, "client": "Mr. Asif Yousaf", "location": "396-Z,Phase-3 DHA Lahore", "capacity": "10"}, {"sr": 134, "client": "Mr. Zohaib Ghazi", "location": "39-J Sabzazar Lahore", "capacity": "10"}, {"sr": 135, "client": "Mr. Khurram Chaudhry", "location": "16-A2 Education Town lahore", "capacity": "15"}, {"sr": 136, "client": "Mr.imran Khan", "location": "Six Sabir street Sadaqat Park sanda khurd Lahore", "capacity": "7"}, {"sr": 137, "client": "Mr. Sheikh Atif", "location": "558-L ,Johar town Lahore", "capacity": "10"}, {"sr": 138, "client": "Mr Ali", "location": "237-E ,Tariq Garden Lahore", "capacity": "13"}, {"sr": 139, "client": "Mr. Hammad Khan", "location": "54-C ,Gulbahar Park Canal Bank Road Lahore", "capacity": "10"}, {"sr": 140, "client": "Mr. Murad sb", "location": "41-J ,Gulberg 3 lahore", "capacity": "10"}, {"sr": 141, "client": "Mr. Nadeem Saleem", "location": "House 11 ,Block A Pujanb Housing society phase2", "capacity": "10"}, {"sr": 142, "client": "Mr. Umar Baat", "location": "448-Q Block Johar Town Lahore", "capacity": "6"}, {"sr": 143, "client": "Mr. Muhammad Abdullah Bhatti", "location": "41- Shaheen Street Taj Bagh Lahore", "capacity": "8"}, {"sr": 144, "client": "Mr. Asim Ijaz", "location": "81-E State Life Society Lahore", "capacity": "12"}, {"sr": 145, "client": "Mr. Muhammad Sharif Ch.", "location": "76-B GOR-3 Lahore", "capacity": "10"}, {"sr": 146, "client": "Mr . Syed Shahid Hussain Rizvi Sb", "location": "162-A Al-Flah Town Lahore", "capacity": "10"}, {"sr": 147, "client": "Mr. Muhammad Sharif Ch.", "location": "Shakar Garh Site", "capacity": "7"}, {"sr": 148, "client": "Mr. Shakoor Shaheer Sb.", "location": "594-A Jubilee Town Lahore", "capacity": "12"}, {"sr": 149, "client": "Mr. Nadeem", "location": "287-E Canal Garden Lahore", "capacity": "15"}, {"sr": 150, "client": "Mr. Ashfaq", "location": "22-A2 Education Town Lahore", "capacity": "-"}, {"sr": 151, "client": "Mr. Imtiaz", "location": "18-C GOR-2 Lahore", "capacity": "-"}, {"sr": 152, "client": "Mr. Saqib", "location": "100-D Sukh Chayn Lahore", "capacity": "6.5"}, {"sr": 153, "client": "Dr. Tasman Ibne Rasa Sb", "location": "992-C Cananl View Lahore", "capacity": "12"}, {"sr": 154, "client": "Mr. Col. Bashir", "location": "43-C Askari 10 Lahore", "capacity": "14"}, {"sr": 155, "client": "Mr. Abdul Rehman", "location": "528-AA DHA Phase -IV Lahore", "capacity": "15"}, {"sr": 156, "client": "Dr. Uzma Ali", "location": "Johar Medicare, Johar Town", "capacity": "12"}, {"sr": 157, "client": "Mr. Naveed Khan", "location": "42- Shaheen Street Taj Bagh Lahore", "capacity": "8.5"}, {"sr": 158, "client": "Mr. Col.Dr.Mansoor Ahmad", "location": "626-C Askari-10 Lahore", "capacity": "10"}, {"sr": 159, "client": "Mr. Muhammad Ali", "location": "274-A State Life Housing Society", "capacity": "15"}, {"sr": 160, "client": "Mr. Ali Hasnain", "location": "358-Gulshan-e-Ravi Lahore", "capacity": "10"}, {"sr": 161, "client": "Mr. Muhammad Umair", "location": "222-B Audit & Accounts Society", "capacity": "7"}, {"sr": 162, "client": "Mr. Syed Tariq Yaqoob Shah", "location": "181-Sikander Block Lahore", "capacity": "10"}, {"sr": 163, "client": "Muhammad Ali", "location": "70-B Tariq Garden, Lahore", "capacity": "5"}, {"sr": 164, "client": "Miss Mahum Khan", "location": "72-B Canal Garden, Lahore", "capacity": "10"}, {"sr": 165, "client": "Mr Muhammad Subhan", "location": "242-A Military Accounts", "capacity": "6/On"}, {"sr": 166, "client": "MR Raheel Ashraf", "location": "292-E Johar Town, Lahore", "capacity": "6/on"}, {"sr": 167, "client": "Mr.Muhammad Tanseer", "location": "347-A1 DHA Rahbar, Lahore", "capacity": "10/on"}, {"sr": 168, "client": "Mr.Ali Akbar", "location": "346-A Al-Johar Town, Lahore", "capacity": "10/on"}, {"sr": 169, "client": "Mr.Mansoor Khalid", "location": "1-A Rahat Park, Lahore", "capacity": "6/Hy"}, {"sr": 170, "client": "Mr.Hafiz Zain Akram", "location": "115/A AWT-2, Lahore", "capacity": "10/on"}, {"sr": 171, "client": "Mr.Hassan Raza", "location": "155-B Nespak-3, Lahore", "capacity": "10/on"}];
+const PKEY = "solar-projects-v1";
+const CKEY = "solar-complaints-v1";
+const DKEY = "solar-plans-v1";
+const IKEY = "solar-inspectplans-v1";
+
+function loadProjects(){
+  let arr;
+  try{ arr = JSON.parse(localStorage.getItem(PKEY)) || null; }catch(e){ arr = null; }
+  if(!arr || !arr.length){ arr = PROJECTS_SEED.slice(); localStorage.setItem(PKEY, JSON.stringify(arr)); }
+  return arr;
+}
+function saveProjects(a){ localStorage.setItem(PKEY, JSON.stringify(a)); }
+
+/* Ensure inspection records contain every project location */
+function syncSitesWithProjects(){
+  try{
+    const sitesRaw = localStorage.getItem(KEY);
+    let sites = sitesRaw ? JSON.parse(sitesRaw) : (typeof SEED!=='undefined'?SEED.slice():[]);
+    const have = new Set(sites.map(s=>(s.name||'').trim().toLowerCase()));
+    const projects = loadProjects();
+    let added = 0;
+    projects.forEach(p=>{
+      const nm = (p.location||p.client||'').trim();
+      if(!nm) return;
+      if(!have.has(nm.toLowerCase())){
+        sites.push({
+          id: 'p'+p.sr+'_'+Date.now(),
+          name: nm,
+          installDate: null,
+          inspections: Array.from({length:9},()=>({date:null,noNeed:false}))
+        });
+        have.add(nm.toLowerCase());
+        added++;
+      }
+    });
+    if(added){ localStorage.setItem(KEY, JSON.stringify(sites)); }
+  }catch(e){ console.warn('sync sites failed',e); }
+}
+
+/* ===== Tabs ===== */
+function showView(name){
+  document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active', v.dataset.v===name));
+  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active', b.dataset.v===name));
+  if(name==='projects') renderProjects();
+  if(name==='complaints') renderComplaints();
+  if(name==='plan') renderPlans();
+  if(name==='inspectplan') renderInspectPlans();
+}
+document.getElementById('tabs').addEventListener('click', e=>{
+  const b = e.target.closest('button[data-v]'); if(!b) return; showView(b.dataset.v);
+});
+
+/* ===== Project Details view ===== */
+function renderProjects(){
+  const list = loadProjects();
+  const q = (document.getElementById('pj-q').value||'').trim().toLowerCase();
+  const filtered = q ? list.filter(p=>(p.client+' '+p.location).toLowerCase().includes(q)) : list;
+  document.getElementById('pj-count').textContent = filtered.length;
+  const grid = document.getElementById('pj-grid');
+  grid.innerHTML = filtered.length ? filtered.map(p=>`
+    <div class="pcard">
+      <span class="sr">#${p.sr}</span>
+      <h4>${escapeHtml(p.client||'-')}</h4>
+      <div class="loc">${escapeHtml(p.location||'-')}</div>
+      <div class="cap">⚡ ${escapeHtml(String(p.capacity||'-'))} kW</div>
+    </div>`).join('') : '<div class="empty2">No projects match.</div>';
+}
+document.getElementById('pj-q').addEventListener('input', renderProjects);
+
+function openAddProject(){ ['ap-client','ap-location','ap-cap'].forEach(id=>document.getElementById(id).value=''); document.getElementById('m-addproj').classList.add('open'); }
+function closeAddProject(){ document.getElementById('m-addproj').classList.remove('open'); }
+function doAddProject(){
+  const client=document.getElementById('ap-client').value.trim();
+  const location=document.getElementById('ap-location').value.trim();
+  const capacity=document.getElementById('ap-cap').value.trim()||'-';
+  if(!client||!location){ alert('Client and location are required'); return; }
+  const arr = loadProjects();
+  const sr = (arr.reduce((m,p)=>Math.max(m,Number(p.sr)||0),0))+1;
+  arr.push({sr, client, location, capacity});
+  saveProjects(arr);
+  syncSitesWithProjects();
+  closeAddProject();
+  renderProjects();
+  if(typeof render==='function') render();
+}
+
+/* ===== Generic storage helpers ===== */
+function loadJSON(k){ try{ return JSON.parse(localStorage.getItem(k))||[]; }catch(e){ return []; } }
+function saveJSON(k,v){ localStorage.setItem(k,JSON.stringify(v)); }
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+
+/* Build a unified site list (from inspection sites + project list) */
+function allSiteNames(){
+  const set = new Map();
+  try{
+    const sites = JSON.parse(localStorage.getItem(KEY))||[];
+    sites.forEach(s=> set.set(s.name.toLowerCase(), s.name));
+  }catch(e){}
+  loadProjects().forEach(p=>{ const n=(p.location||p.client||'').trim(); if(n && !set.has(n.toLowerCase())) set.set(n.toLowerCase(), n); });
+  return Array.from(set.values()).sort();
+}
+function fillSiteSelect(sel){
+  sel.innerHTML = '<option value="">— select site —</option>' + allSiteNames().map(n=>`<option>${escapeHtml(n)}</option>`).join('');
+}
+
+/* ===== Complaints ===== */
+let editingCp = null;
+function renderComplaints(){
+  const arr = loadJSON(CKEY).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const el = document.getElementById('cp-list');
+  el.innerHTML = arr.length ? arr.map(c=>`
+    <div class="list-item" onclick="openCp('${c.id}')">
+      <div class="lh">
+        <div>
+          <div class="lt">${escapeHtml(c.site||'(no site)')}</div>
+          <div class="ls">By ${escapeHtml(c.by||'-')} · ${escapeHtml(c.date||'-')}</div>
+        </div>
+        <span class="badge ${c.status==='resolved'?'resolved':'open'}">${c.status||'open'}</span>
+      </div>
+      <div class="desc">${escapeHtml(c.desc||'')}</div>
+    </div>`).join('') : '<div class="empty2">No complaints recorded.</div>';
+}
+function openAddComplaint(){ editingCp=null; document.getElementById('cp-title').textContent='New Complaint'; document.getElementById('cp-del').style.display='none';
+  fillSiteSelect(document.getElementById('cp-site'));
+  document.getElementById('cp-site').value=''; document.getElementById('cp-by').value=''; document.getElementById('cp-desc').value=''; document.getElementById('cp-status').value='open'; document.getElementById('cp-date').value=todayStr();
+  document.getElementById('m-cp').classList.add('open');
+}
+function openCp(id){ const arr=loadJSON(CKEY); const c=arr.find(x=>x.id===id); if(!c) return; editingCp=id;
+  document.getElementById('cp-title').textContent='Complaint';
+  fillSiteSelect(document.getElementById('cp-site'));
+  document.getElementById('cp-site').value=c.site||''; document.getElementById('cp-by').value=c.by||''; document.getElementById('cp-desc').value=c.desc||''; document.getElementById('cp-status').value=c.status||'open'; document.getElementById('cp-date').value=c.date||todayStr();
+  document.getElementById('cp-del').style.display=''; document.getElementById('m-cp').classList.add('open');
+}
+function closeCp(){ document.getElementById('m-cp').classList.remove('open'); }
+function saveCp(){
+  const obj={ id: editingCp || ('c'+Date.now()), site: document.getElementById('cp-site').value, by: document.getElementById('cp-by').value.trim(), desc: document.getElementById('cp-desc').value.trim(), status: document.getElementById('cp-status').value, date: document.getElementById('cp-date').value||todayStr() };
+  if(!obj.site){ alert('Pick a site'); return; }
+  if(!obj.desc){ alert('Enter description'); return; }
+  const arr=loadJSON(CKEY); const i=arr.findIndex(x=>x.id===obj.id);
+  if(i>=0) arr[i]=obj; else arr.push(obj);
+  saveJSON(CKEY,arr); closeCp(); renderComplaints();
+}
+function deleteCp(){ if(!editingCp||!confirm('Delete this complaint?')) return; saveJSON(CKEY, loadJSON(CKEY).filter(x=>x.id!==editingCp)); closeCp(); renderComplaints(); }
+
+/* ===== Daily Plan ===== */
+let editingPl=null;
+function renderPlans(){
+  const dateFilter = document.getElementById('pl-date').value;
+  let arr = loadJSON(DKEY);
+  if(dateFilter) arr = arr.filter(p=>p.date===dateFilter);
+  arr.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const el=document.getElementById('pl-list');
+  el.innerHTML = arr.length ? arr.map(p=>`
+    <div class="list-item" onclick="openPl('${p.id}')">
+      <div class="lh">
+        <div>
+          <div class="lt">${escapeHtml(p.site||'-')}</div>
+          <div class="ls">${escapeHtml(p.date||'-')} · ${escapeHtml(p.type||'work')}</div>
+        </div>
+      </div>
+      <div style="margin-top:8px">
+        ${p.civil?`<span class="chip civil">🏗 ${escapeHtml(p.civil)}</span>`:''}
+        ${p.fab?`<span class="chip fab">🔧 ${escapeHtml(p.fab)}</span>`:''}
+      </div>
+      ${p.notes?`<div class="desc">${escapeHtml(p.notes)}</div>`:''}
+      ${p.voice?`<div onclick="event.stopPropagation()" style="margin-top:8px;display:flex;align-items:center;gap:8px"><span style="font-size:12px;color:var(--muted)">🎙 Voice note</span><audio controls src="${p.voice}" style="height:34px;flex:1;min-width:160px"></audio></div>`:''}
+    </div>`).join('') : '<div class="empty2">No plans for this view.</div>';
+}
+document.getElementById('pl-date').addEventListener('change', renderPlans);
+function openAddPlan(){ editingPl=null; document.getElementById('pl-title').textContent='New Plan'; document.getElementById('pl-del').style.display='none';
+  fillSiteSelect(document.getElementById('pl-site'));
+  document.getElementById('pl-d').value=todayStr(); document.getElementById('pl-site').value=''; document.getElementById('pl-type').value='work'; document.getElementById('pl-civil').value=''; document.getElementById('pl-fab').value=''; document.getElementById('pl-notes').value='';
+  setVoice(''); document.getElementById('m-pl').classList.add('open');
+}
+function openPl(id){ const arr=loadJSON(DKEY); const p=arr.find(x=>x.id===id); if(!p) return; editingPl=id;
+  document.getElementById('pl-title').textContent='Edit Plan';
+  fillSiteSelect(document.getElementById('pl-site'));
+  document.getElementById('pl-d').value=p.date||todayStr(); document.getElementById('pl-site').value=p.site||''; document.getElementById('pl-type').value=p.type||'work'; document.getElementById('pl-civil').value=p.civil||''; document.getElementById('pl-fab').value=p.fab||''; document.getElementById('pl-notes').value=p.notes||'';
+  setVoice(p.voice||''); document.getElementById('pl-del').style.display=''; document.getElementById('m-pl').classList.add('open');
+}
+function closePl(){ stopVoiceRec(true); document.getElementById('m-pl').classList.remove('open'); }
+function savePl(){
+  const obj={ id: editingPl||('p'+Date.now()), date: document.getElementById('pl-d').value||todayStr(), site: document.getElementById('pl-site').value, type: document.getElementById('pl-type').value, civil: document.getElementById('pl-civil').value, fab: document.getElementById('pl-fab').value, notes: document.getElementById('pl-notes').value.trim(), voice: currentVoice||'' };
+  if(!obj.site){ alert('Pick a site'); return; }
+  if(!obj.civil && !obj.fab){ alert('Assign at least a Civil team or Fabricator'); return; }
+  const arr=loadJSON(DKEY); const i=arr.findIndex(x=>x.id===obj.id); if(i>=0) arr[i]=obj; else arr.push(obj);
+  try { saveJSON(DKEY,arr); } catch(e){ alert('Storage full — voice note too large. Try a shorter recording.'); return; }
+  closePl(); renderPlans();
+}
+function deletePl(){ if(!editingPl||!confirm('Delete plan?')) return; saveJSON(DKEY, loadJSON(DKEY).filter(x=>x.id!==editingPl)); closePl(); renderPlans(); }
+
+/* ===== Voice recording for Daily Plan ===== */
+let mediaRec=null, mediaChunks=[], mediaStream=null, recStart=0, recTimer=null, currentVoice='';
+const REC_MAX_MS = 3*60*1000;
+function setVoice(dataUrl){
+  currentVoice = dataUrl||'';
+  const a=document.getElementById('pl-voice-audio'), del=document.getElementById('pl-voice-del');
+  if(currentVoice){ a.src=currentVoice; a.style.display=''; del.style.display=''; }
+  else { a.removeAttribute('src'); a.style.display='none'; del.style.display='none'; }
+  document.getElementById('pl-rec-time').textContent='0:00';
+  document.getElementById('pl-rec-btn').textContent = '🎙 Record';
+  document.getElementById('pl-rec-btn').classList.remove('danger');
+}
+function clearVoice(){ if(confirm('Remove voice note?')) setVoice(''); }
+function fmtTime(ms){ const s=Math.floor(ms/1000); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
+async function toggleVoiceRec(){
+  if(mediaRec && mediaRec.state==='recording'){ stopVoiceRec(); return; }
+  if(!navigator.mediaDevices || !window.MediaRecorder){ alert('Voice recording not supported on this browser.'); return; }
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({audio:true});
+  } catch(e){ alert('Microphone permission denied.'); return; }
+  const mime = ['audio/webm;codecs=opus','audio/webm','audio/mp4'].find(t=>MediaRecorder.isTypeSupported(t)) || '';
+  mediaRec = mime ? new MediaRecorder(mediaStream,{mimeType:mime}) : new MediaRecorder(mediaStream);
+  mediaChunks = [];
+  mediaRec.ondataavailable = e => { if(e.data && e.data.size) mediaChunks.push(e.data); };
+  mediaRec.onstop = () => {
+    const blob = new Blob(mediaChunks, {type: mediaRec.mimeType||'audio/webm'});
+    if(mediaStream){ mediaStream.getTracks().forEach(t=>t.stop()); mediaStream=null; }
+    clearInterval(recTimer); recTimer=null;
+    const btn=document.getElementById('pl-rec-btn'); btn.textContent='🎙 Record'; btn.classList.remove('danger');
+    const fr = new FileReader();
+    fr.onload = () => setVoice(fr.result);
+    fr.readAsDataURL(blob);
+  };
+  mediaRec.start();
+  recStart = Date.now();
+  const btn=document.getElementById('pl-rec-btn'); btn.textContent='⏹ Stop'; btn.classList.add('danger');
+  document.getElementById('pl-rec-time').textContent='0:00';
+  recTimer = setInterval(()=>{
+    const el = Date.now()-recStart;
+    document.getElementById('pl-rec-time').textContent = fmtTime(el);
+    if(el >= REC_MAX_MS) stopVoiceRec();
+  }, 250);
+}
+function stopVoiceRec(silent){
+  if(mediaRec && mediaRec.state==='recording'){ try{ mediaRec.stop(); }catch(e){} }
+  else if(mediaStream){ mediaStream.getTracks().forEach(t=>t.stop()); mediaStream=null; }
+  if(recTimer){ clearInterval(recTimer); recTimer=null; }
+}
+
+
+/* ===== Daily Inspection plan ===== */
+let editingIp=null;
+function renderInspectPlans(){
+  const f=document.getElementById('ip-date').value;
+  let arr=loadJSON(IKEY); if(f) arr=arr.filter(p=>p.date===f);
+  arr.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const el=document.getElementById('ip-list');
+  el.innerHTML = arr.length ? arr.map(p=>`
+    <div class="list-item" onclick="openIp('${p.id}')">
+      <div class="lh">
+        <div><div class="lt">${escapeHtml(p.site||'-')}</div><div class="ls">${escapeHtml(p.date||'-')}</div></div>
+        <span class="chip insp">🔍 ${escapeHtml(p.who||'-')}</span>
+      </div>
+      ${p.notes?`<div class="desc">${escapeHtml(p.notes)}</div>`:''}
+    </div>`).join('') : '<div class="empty2">No inspections scheduled.</div>';
+}
+document.getElementById('ip-date').addEventListener('change', renderInspectPlans);
+function openAddInspect(){ editingIp=null; document.getElementById('ip-title').textContent='New Inspection'; document.getElementById('ip-del').style.display='none';
+  fillSiteSelect(document.getElementById('ip-site'));
+  document.getElementById('ip-d').value=todayStr(); document.getElementById('ip-site').value=''; document.getElementById('ip-who').value='Inspector 1'; document.getElementById('ip-notes').value='';
+  document.getElementById('m-ip').classList.add('open');
+}
+function openIp(id){ const arr=loadJSON(IKEY); const p=arr.find(x=>x.id===id); if(!p) return; editingIp=id;
+  document.getElementById('ip-title').textContent='Edit Inspection';
+  fillSiteSelect(document.getElementById('ip-site'));
+  document.getElementById('ip-d').value=p.date||todayStr(); document.getElementById('ip-site').value=p.site||''; document.getElementById('ip-who').value=p.who||'Inspector 1'; document.getElementById('ip-notes').value=p.notes||'';
+  document.getElementById('ip-del').style.display=''; document.getElementById('m-ip').classList.add('open');
+}
+function closeIp(){ document.getElementById('m-ip').classList.remove('open'); }
+function saveIp(){
+  const obj={ id:editingIp||('i'+Date.now()), date:document.getElementById('ip-d').value||todayStr(), site:document.getElementById('ip-site').value, who:document.getElementById('ip-who').value, notes:document.getElementById('ip-notes').value.trim() };
+  if(!obj.site){ alert('Pick a site'); return; }
+  const arr=loadJSON(IKEY); const i=arr.findIndex(x=>x.id===obj.id); if(i>=0) arr[i]=obj; else arr.push(obj);
+  saveJSON(IKEY,arr); closeIp(); renderInspectPlans();
+}
+function deleteIp(){ if(!editingIp||!confirm('Delete inspection?')) return; saveJSON(IKEY, loadJSON(IKEY).filter(x=>x.id!==editingIp)); closeIp(); renderInspectPlans(); }
+
+/* ===== Boot: ensure projects synced into sites ===== */
+syncSitesWithProjects();
+
 </script>
 </body></html>
