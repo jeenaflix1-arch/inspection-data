@@ -4220,4 +4220,186 @@ refreshNotifDot();
 })();
 </script>
 
+
+<script>
+/* ============ TRACKER_16: Salary Slip (View/Print/PDF/Excel) + Payroll→Expense/Ledger/P&L sync ============ */
+(function(){
+  const K={emp:'erp-employees-v1',pay:'erp-payroll-v1',exp:'erp-expenses-v1'};
+  const lj=(k)=>{try{return JSON.parse(localStorage.getItem(k))||[]}catch(e){return []}};
+  const sj=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+  const esc=(s)=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const fmt=(n)=>'Rs '+(Number(n||0)).toLocaleString();
+
+  function findEmp(id){return lj(K.emp).find(e=>e.id===id)||{};}
+
+  function slipHTML(p){
+    const e=findEmp(p.empId)||{};
+    const basic=+p.basic||0,bonus=+p.bonus||0,ded=+p.deductions||0,adv=+p.advance||0,paid=+p.paid||0;
+    const net=basic+bonus-ded-adv;
+    const rem=net-paid;
+    return `<!doctype html><html><head><meta charset="utf-8"><title>Salary Slip - ${esc(e.name||'')}</title>
+<style>body{font-family:Arial,sans-serif;max-width:780px;margin:20px auto;padding:20px;color:#111}
+h1{margin:0;font-size:22px}h3{margin:14px 0 6px;border-bottom:1px solid #ccc;padding-bottom:4px}
+table{width:100%;border-collapse:collapse;margin:8px 0}td,th{border:1px solid #ddd;padding:6px 8px;font-size:13px;text-align:left}
+.tot{background:#f5f5f5;font-weight:bold}.right{text-align:right}
+.head{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #0a6;padding-bottom:8px}
+.btns{margin:12px 0}.btns button{padding:8px 14px;margin-right:6px;cursor:pointer;border:1px solid #0a6;background:#0a6;color:#fff;border-radius:4px}
+@media print{.btns{display:none}}</style></head><body>
+<div class="head"><div><h1>Scope Solar — Salary Slip</h1><div>For: <b>${esc(p.month||'-')}</b></div></div>
+<div class="right">Slip #${esc(p.id||'')}<br>Issued: ${new Date().toLocaleDateString()}</div></div>
+<div class="btns">
+  <button onclick="window.print()">🖨️ Print / Save as PDF</button>
+  <button onclick="window.opener && window.opener.__erpDownloadSlipXLS && window.opener.__erpDownloadSlipXLS('${esc(p.id)}')">⬇️ Download Excel</button>
+  <button onclick="window.close()">Close</button>
+</div>
+<h3>Employee Details</h3>
+<table>
+<tr><th>Name</th><td>${esc(e.name||'')}</td><th>Employee ID</th><td>${esc(e.id||p.empId||'')}</td></tr>
+<tr><th>Designation</th><td>${esc(e.role||e.designation||'')}</td><th>Phone</th><td>${esc(e.phone||'')}</td></tr>
+</table>
+<h3>Salary Breakdown</h3>
+<table>
+<tr><th>Component</th><th class="right">Amount</th></tr>
+<tr><td>Basic Salary</td><td class="right">${fmt(basic)}</td></tr>
+<tr><td>Bonus</td><td class="right">${fmt(bonus)}</td></tr>
+<tr><td>Deductions</td><td class="right">- ${fmt(ded)}</td></tr>
+<tr><td>Advance Taken</td><td class="right">- ${fmt(adv)}</td></tr>
+<tr class="tot"><td>Net Payable Salary</td><td class="right">${fmt(net)}</td></tr>
+<tr><td>Paid Amount</td><td class="right">${fmt(paid)}</td></tr>
+<tr class="tot"><td>Remaining Balance</td><td class="right">${fmt(rem)}</td></tr>
+<tr><td>Payment Method</td><td class="right">${esc(p.method||'-')}</td></tr>
+</table>
+<h3>Payment / Account Information</h3>
+<table>
+<tr><th>Bank Name</th><td>${esc(e.bankName||'-')}</td><th>Account #</th><td>${esc(e.bankAcc||'-')}</td></tr>
+<tr><th>IBAN</th><td colspan="3">${esc(e.iban||'-')}</td></tr>
+<tr><th>Easypaisa</th><td>${esc(e.easypaisa||'-')}</td><th>JazzCash</th><td>${esc(e.jazzcash||'-')}</td></tr>
+</table>
+<p style="margin-top:24px;font-size:12px;color:#666">This is a system-generated salary slip. Signature not required.</p>
+</body></html>`;
+  }
+
+  window.openSalarySlip=function(payId){
+    const p=lj(K.pay).find(x=>x.id===payId);
+    if(!p){alert('Salary entry not found');return;}
+    const w=window.open('','_blank','width=900,height=700');
+    if(!w){alert('Allow popups to view slip');return;}
+    w.document.write(slipHTML(p));w.document.close();
+  };
+
+  window.__erpDownloadSlipXLS=function(payId){
+    const p=lj(K.pay).find(x=>x.id===payId);if(!p)return;
+    const e=findEmp(p.empId)||{};
+    const basic=+p.basic||0,bonus=+p.bonus||0,ded=+p.deductions||0,adv=+p.advance||0,paid=+p.paid||0;
+    const net=basic+bonus-ded-adv,rem=net-paid;
+    const rows=[
+      ['Scope Solar — Salary Slip'],['Slip #',p.id],['Month',p.month||''],[''],
+      ['Employee Name',e.name||''],['Employee ID',e.id||''],['Designation',e.role||e.designation||''],[''],
+      ['Basic',basic],['Bonus',bonus],['Deductions',ded],['Advance',adv],
+      ['Net Payable',net],['Paid',paid],['Remaining',rem],['Method',p.method||''],[''],
+      ['Bank Name',e.bankName||''],['Account #',e.bankAcc||''],['IBAN',e.iban||''],
+      ['Easypaisa',e.easypaisa||''],['JazzCash',e.jazzcash||'']
+    ];
+    const tsv=rows.map(r=>r.map(c=>String(c==null?'':c).replace(/\t/g,' ')).join('\t')).join('\n');
+    const html='<html><head><meta charset="utf-8"></head><body><table border="1">'+
+      rows.map(r=>'<tr>'+r.map(c=>'<td>'+esc(c)+'</td>').join('')+'</tr>').join('')+'</table></body></html>';
+    const blob=new Blob(['\ufeff'+html],{type:'application/vnd.ms-excel'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    a.download='salary-slip-'+(e.name||p.empId||'employee').replace(/\s+/g,'_')+'-'+(p.month||'').replace(/\s+/g,'_')+'.xls';
+    document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},200);
+  };
+
+  /* === Payroll → Expense / Ledger / P&L sync === */
+  function syncPayrollToExpenses(){
+    const pays=lj(K.pay), emps=lj(K.emp);
+    let exps=lj(K.exp);
+    const byTag={};
+    exps.forEach((x,i)=>{if(x && x.tag && x.tag.indexOf('payroll:')===0) byTag[x.tag]=i;});
+    let changed=false;
+    pays.forEach(p=>{
+      const paid=+p.paid||0; const tag='payroll:'+p.id;
+      const emp=emps.find(e=>e.id===p.empId)||{};
+      if(paid>0){
+        const row={
+          id: (exps[byTag[tag]]&&exps[byTag[tag]].id)||('exp_'+p.id),
+          tag, date:p.date||p.paidDate||new Date().toISOString().slice(0,10),
+          category:'Salary / Payroll',
+          desc:'Salary '+(p.month||'')+' — '+(emp.name||p.empId||''),
+          amount:paid, method:p.method||'Cash',
+          ref:'SLIP-'+p.id, party:emp.name||'', empId:p.empId||''
+        };
+        if(byTag[tag]!=null){
+          const cur=exps[byTag[tag]];
+          if(cur.amount!==row.amount||cur.desc!==row.desc||cur.method!==row.method||cur.date!==row.date){
+            exps[byTag[tag]]={...cur,...row};changed=true;
+          }
+        }else{exps.push(row);changed=true;}
+      }else if(byTag[tag]!=null){
+        exps.splice(byTag[tag],1);changed=true;
+        // rebuild index
+        const newByTag={};exps.forEach((x,i)=>{if(x.tag&&x.tag.indexOf('payroll:')===0)newByTag[x.tag]=i;});
+        Object.assign(byTag,newByTag);
+      }
+    });
+    // remove orphan payroll expenses
+    const payIds=new Set(pays.map(p=>'payroll:'+p.id));
+    exps=exps.filter(x=>{
+      if(x&&x.tag&&x.tag.indexOf('payroll:')===0&&!payIds.has(x.tag)){changed=true;return false;}
+      return true;
+    });
+    if(changed){
+      sj(K.exp,exps);
+      try{window.dispatchEvent(new CustomEvent('solar:data-changed',{detail:{key:K.exp}}));}catch(e){}
+      if(typeof window.__solarRefreshAll==='function') window.__solarRefreshAll();
+    }
+  }
+  window.__erpSyncPayroll=syncPayrollToExpenses;
+
+  // Wrap localStorage.setItem to detect payroll changes
+  const _setItem=localStorage.setItem.bind(localStorage);
+  localStorage.setItem=function(k,v){
+    _setItem(k,v);
+    if(k===K.pay) setTimeout(syncPayrollToExpenses,20);
+  };
+
+  // Inject Slip buttons into payroll rendering — observe DOM
+  function decorate(){
+    document.querySelectorAll('[data-pay-id]:not([data-slip-added])').forEach(el=>{
+      el.setAttribute('data-slip-added','1');
+      const id=el.getAttribute('data-pay-id');
+      const btn=document.createElement('button');
+      btn.className='btn';btn.textContent='🧾 Slip';
+      btn.style.marginLeft='4px';
+      btn.onclick=()=>window.openSalarySlip(id);
+      el.appendChild(btn);
+    });
+    // Fallback: find payroll table rows and inject by matching pay id text
+    const pays=lj(K.pay);
+    if(!pays.length) return;
+    document.querySelectorAll('table tr').forEach(tr=>{
+      if(tr.getAttribute('data-slip-injected'))return;
+      const txt=tr.textContent||'';
+      const match=pays.find(p=>p.id && txt.indexOf(p.id)>-1);
+      if(match){
+        tr.setAttribute('data-slip-injected','1');
+        const td=tr.querySelector('td:last-child');
+        if(td && !td.querySelector('.slip-btn')){
+          const b=document.createElement('button');
+          b.className='btn slip-btn';b.textContent='🧾 Slip';
+          b.style.cssText='margin-left:4px;padding:2px 8px;font-size:12px';
+          b.onclick=(ev)=>{ev.stopPropagation();window.openSalarySlip(match.id);};
+          td.appendChild(b);
+        }
+      }
+    });
+  }
+  setInterval(decorate,1500);
+  document.addEventListener('click',()=>setTimeout(decorate,200));
+
+  // Initial sync
+  setTimeout(syncPayrollToExpenses,500);
+  console.log('[TRACKER_16] Salary slip + payroll sync active');
+})();
+</script>
+
 </body></html>
