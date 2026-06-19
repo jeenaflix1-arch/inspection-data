@@ -523,77 +523,44 @@ body.is-admin .admin-only{display:inline-flex !important}
   </div>
 </main>
 
-<main class="view" id="view-accounts" data-v="accounts" style="max-width:none;padding:0">
-  <iframe src="/api/accounts" title="Scope Solar Accounts" style="width:100%;height:calc(100vh - 120px);min-height:600px;border:0;display:block;background:var(--bg)"></iframe>
-  <!-- Legacy stubs kept hidden so existing JS does not crash -->
-  <div style="display:none" aria-hidden="true">
-    <span id="acc-tot-inc"></span><span id="acc-tot-exp"></span><span id="acc-tot-bal"></span><span id="acc-tot-n"></span>
-    <div id="acc-filters"></div>
-    <input id="acc-q"/>
-    <div id="acc-list"></div>
+<main class="view" id="view-accounts" data-v="accounts">
+  <div class="panel erp-panel">
+    <div class="head-row">
+      <h2>💰 Scope Solar ERP & Accounts</h2>
+      <div class="sub" style="margin-left:8px">Complete finance, inventory, payroll & analytics</div>
+    </div>
+    <div class="erp-tabs" id="erp-tabs">
+      <button class="erp-tab active" data-tab="dashboard">📊 Dashboard</button>
+      <button class="erp-tab" data-tab="daily">⚡ Daily Entry</button>
+      <button class="erp-tab" data-tab="income">📥 Income</button>
+      <button class="erp-tab" data-tab="expense">📤 Expenses</button>
+      <button class="erp-tab" data-tab="customers">👤 Customers / CRM</button>
+      <button class="erp-tab" data-tab="suppliers">🏭 Suppliers</button>
+      <button class="erp-tab" data-tab="employees">👷 Employees</button>
+      <button class="erp-tab" data-tab="payroll">💵 Payroll</button>
+      <button class="erp-tab" data-tab="installers">🔧 Installers / Fabricators</button>
+      <button class="erp-tab" data-tab="inventory">📦 Inventory</button>
+      <button class="erp-tab" data-tab="material">🚚 Material Tracking</button>
+      <button class="erp-tab" data-tab="vehicles">🚗 Vehicles / Fuel</button>
+      <button class="erp-tab" data-tab="projectfin">📋 Project Finance</button>
+      <button class="erp-tab" data-tab="ledgers">📒 Ledgers</button>
+      <button class="erp-tab" data-tab="reports">📄 Reports</button>
+      <button class="erp-tab" data-tab="analytics">📈 Analytics</button>
+    </div>
+    <div id="erp-body" class="erp-body"></div>
   </div>
 </main>
 
 <!-- Account entry modal -->
-<div class="modal" id="m-acc"><div class="backdrop" onclick="closeAcc()"></div>
-  <div class="dialog"><div class="dhead"><div><h2 id="acc-title">Add Entry</h2><div class="sub">Income or expense record</div></div>
-    <button class="iconbtn" style="margin-left:auto" onclick="closeAcc()">✕</button></div>
-    <div class="dbody">
-      <label class="field"><span>Type</span>
-        <select id="acc-type"><option value="income">Income (money in)</option><option value="expense">Expense (money out)</option></select>
-      </label>
-      <label class="field"><span>Date</span><input type="date" id="acc-date"/></label>
-      <label class="field"><span>Category</span>
-        <select id="acc-cat">
-          <optgroup label="Income">
-            <option>Customer Payment</option>
-            <option>Advance / Booking</option>
-            <option>Installment</option>
-            <option>Inspection Fee</option>
-            <option>Maintenance Charge</option>
-            <option>Other Income</option>
-          </optgroup>
-          <optgroup label="Expense">
-            <option>Solar Panels</option>
-            <option>Inverter</option>
-            <option>Battery</option>
-            <option>Structure / Fabrication</option>
-            <option>Cables & Wiring</option>
-            <option>Civil Work</option>
-            <option>Labour / Wages</option>
-            <option>Salaries</option>
-            <option>Transport / Fuel</option>
-            <option>Tools & Equipment</option>
-            <option>Office Rent</option>
-            <option>Utilities</option>
-            <option>Marketing</option>
-            <option>Vendor Payment</option>
-            <option>Bank Charges</option>
-            <option>Tax</option>
-            <option>Other Expense</option>
-          </optgroup>
-        </select>
-      </label>
-      <label class="field"><span>Party (customer / vendor / employee)</span><input type="text" id="acc-party" placeholder="e.g. 1017-C Canal View / Ali Traders / Ahmed"/></label>
-      <label class="field"><span>Project / Site (optional)</span><select id="acc-site"><option value="">— none —</option></select></label>
-      <label class="field"><span>Amount (Rs)</span><input type="text" id="acc-amt" inputmode="numeric" placeholder="0"/></label>
-      <label class="field"><span>Payment Method</span>
-        <select id="acc-method">
-          <option>Cash</option>
-          <option>Bank Transfer</option>
-          <option>Cheque</option>
-          <option>JazzCash / Easypaisa</option>
-          <option>Card</option>
-          <option>Other</option>
-        </select>
-      </label>
-      <label class="field"><span>Reference No. (cheque / txn id, optional)</span><input type="text" id="acc-ref"/></label>
-      <label class="field"><span>Notes</span><textarea id="acc-notes" placeholder="Description, invoice #, etc."></textarea></label>
-    </div>
+<!-- Generic ERP form modal -->
+<div class="modal" id="m-erp"><div class="backdrop" onclick="erpCloseModal()"></div>
+  <div class="dialog"><div class="dhead"><div><h2 id="erp-mtitle">Entry</h2><div class="sub" id="erp-msub"></div></div>
+    <button class="iconbtn" style="margin-left:auto" onclick="erpCloseModal()">✕</button></div>
+    <div class="dbody" id="erp-mbody"></div>
     <div class="dfoot">
-      <button class="btn danger" id="acc-del-btn" onclick="deleteAcc()" style="display:none">🗑 Delete</button>
-      <button class="btn ghost" onclick="closeAcc()">Cancel</button>
-      <button class="btn" onclick="saveAcc()">Save</button>
+      <button class="btn danger" id="erp-del-btn" onclick="erpDeleteCurrent()" style="display:none">🗑 Delete</button>
+      <button class="btn ghost" onclick="erpCloseModal()">Cancel</button>
+      <button class="btn" onclick="erpSaveCurrent()">Save</button>
     </div>
   </div>
 </div>
@@ -1766,105 +1733,7 @@ document.addEventListener('click', (e)=>{
   closeSidebar();
 });
 
-/* ===== Accounts ===== */
-const AKEY = "solar-accounts-v1";
-let accEditId = null;
-let accFilter = 'all';
-function loadAcc(){ return loadJSON(AKEY); }
-function saveAccArr(a){ saveJSON(AKEY, a); }
-function fmtMoney(n){ const v = Number(n)||0; return 'Rs ' + v.toLocaleString('en-PK'); }
-function renderAccounts(){
-  const all = loadAcc().slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-  const q = (document.getElementById('acc-q').value||'').trim().toLowerCase();
-  const arr = all.filter(e=>{
-    if(accFilter!=='all' && e.type!==accFilter) return false;
-    if(!q) return true;
-    return ((e.party||'')+' '+(e.category||'')+' '+(e.notes||'')+' '+(e.method||'')+' '+(e.ref||'')+' '+(e.site||'')).toLowerCase().includes(q);
-  });
-  const totInc = all.filter(e=>e.type==='income').reduce((s,e)=>s+(Number(e.amount)||0),0);
-  const totExp = all.filter(e=>e.type==='expense').reduce((s,e)=>s+(Number(e.amount)||0),0);
-  document.getElementById('acc-tot-inc').textContent = fmtMoney(totInc);
-  document.getElementById('acc-tot-exp').textContent = fmtMoney(totExp);
-  document.getElementById('acc-tot-bal').textContent = fmtMoney(totInc-totExp);
-  document.getElementById('acc-tot-n').textContent = all.length;
-  const list = document.getElementById('acc-list');
-  list.innerHTML = arr.length ? arr.map(e=>`
-    <div class="acc-row" onclick="openAccEdit('${e.id}')">
-      <div class="acc-date">${e.date||'-'}<br/><span class="acc-tag ${e.type==='income'?'inc':'exp'}">${e.type==='income'?'IN':'OUT'}</span></div>
-      <div class="acc-meta">${escapeHtml(e.category||'-')}${e.party?` · ${escapeHtml(e.party)}`:''}
-        <small>${escapeHtml(e.method||'')}${e.ref?` · Ref ${escapeHtml(e.ref)}`:''}${e.site?` · 📍 ${escapeHtml(e.site)}`:''}${e.notes?` · ${escapeHtml(e.notes)}`:''}</small>
-      </div>
-      <div class="acc-amt ${e.type==='income'?'inc':'exp'}">${e.type==='income'?'+':'−'} ${fmtMoney(e.amount)}</div>
-    </div>`).join('') : '<div class="empty2">No entries yet. Click <b>+ Income</b> or <b>+ Expense</b> to start.</div>';
-}
-function openAddAcc(type){
-  accEditId = null;
-  document.getElementById('acc-title').textContent = type==='income' ? 'Add Income' : 'Add Expense';
-  document.getElementById('acc-type').value = type;
-  document.getElementById('acc-date').value = new Date().toISOString().slice(0,10);
-  ['acc-party','acc-amt','acc-ref','acc-notes'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('acc-method').value = 'Cash';
-  document.getElementById('acc-del-btn').style.display='none';
-  // populate sites
-  const sel = document.getElementById('acc-site');
-  const sites = (typeof loadProjects==='function'? loadProjects(): []);
-  sel.innerHTML = '<option value="">— none —</option>' + sites.map(p=>`<option value="${escapeHtml(p.client||p.location||'')}">${escapeHtml((p.client||'')+' · '+(p.location||''))}</option>`).join('');
-  document.getElementById('m-acc').classList.add('open');
-}
-function openAccEdit(id){
-  const e = loadAcc().find(x=>x.id===id); if(!e) return;
-  openAddAcc(e.type);
-  accEditId = id;
-  document.getElementById('acc-title').textContent = 'Edit '+(e.type==='income'?'Income':'Expense');
-  document.getElementById('acc-type').value = e.type;
-  document.getElementById('acc-date').value = e.date||'';
-  document.getElementById('acc-cat').value = e.category||'';
-  document.getElementById('acc-party').value = e.party||'';
-  document.getElementById('acc-amt').value = e.amount||'';
-  document.getElementById('acc-method').value = e.method||'Cash';
-  document.getElementById('acc-ref').value = e.ref||'';
-  document.getElementById('acc-notes').value = e.notes||'';
-  const sel = document.getElementById('acc-site');
-  if(e.site){ if(![...sel.options].some(o=>o.value===e.site)){ const opt=document.createElement('option'); opt.value=e.site; opt.textContent=e.site; sel.appendChild(opt); } sel.value=e.site; }
-  document.getElementById('acc-del-btn').style.display='inline-flex';
-}
-function closeAcc(){ document.getElementById('m-acc').classList.remove('open'); }
-function saveAcc(){
-  const type = document.getElementById('acc-type').value;
-  const date = document.getElementById('acc-date').value;
-  const category = document.getElementById('acc-cat').value;
-  const party = document.getElementById('acc-party').value.trim();
-  const amount = Number(String(document.getElementById('acc-amt').value).replace(/[, ]/g,''))||0;
-  const method = document.getElementById('acc-method').value;
-  const ref = document.getElementById('acc-ref').value.trim();
-  const notes = document.getElementById('acc-notes').value.trim();
-  const site = document.getElementById('acc-site').value;
-  if(!date){ alert('Date is required'); return; }
-  if(amount<=0){ alert('Enter a valid amount'); return; }
-  const arr = loadAcc();
-  if(accEditId){
-    const i = arr.findIndex(x=>x.id===accEditId);
-    if(i>=0) arr[i] = {...arr[i], type,date,category,party,amount,method,ref,notes,site};
-  } else {
-    arr.push({ id:'a'+Date.now()+Math.random().toString(36).slice(2,6), type,date,category,party,amount,method,ref,notes,site, at:new Date().toISOString() });
-  }
-  saveAccArr(arr);
-  closeAcc();
-  renderAccounts();
-}
-function deleteAcc(){
-  if(!accEditId) return;
-  if(!confirm('Delete this entry?')) return;
-  saveAccArr(loadAcc().filter(x=>x.id!==accEditId));
-  closeAcc(); renderAccounts();
-}
-document.addEventListener('click', (e)=>{
-  const p = e.target.closest('#acc-filters .pill'); if(!p) return;
-  accFilter = p.dataset.f;
-  document.querySelectorAll('#acc-filters .pill').forEach(x=>x.classList.toggle('active', x===p));
-  renderAccounts();
-});
-document.getElementById('acc-q').addEventListener('input', renderAccounts);
+/* Accounts module replaced by ERP — see end of file */
 
 
 // Initialize admin UI on load
@@ -2769,6 +2638,1107 @@ refreshNotifDot();
   };
 
   console.log('[tracker_13] reliable sync installed');
+})();
+</script>
+
+
+<style>
+/* ===== ERP styles ===== */
+.erp-panel{padding:14px}
+.erp-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 14px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.erp-tab{background:var(--secondary);color:var(--fg);border:1px solid var(--border);border-radius:10px;padding:7px 12px;font-size:12.5px;font-weight:600;cursor:pointer;transition:all .15s}
+.erp-tab:hover{border-color:var(--primary)}
+.erp-tab.active{background:linear-gradient(135deg,#f97316,#fbbf24);color:#1a1208;border-color:transparent}
+.erp-body{min-height:300px}
+.erp-kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:14px}
+.erp-kpi{background:linear-gradient(135deg,var(--card),var(--secondary));border:1px solid var(--border);border-radius:12px;padding:12px}
+.erp-kpi .lbl{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+.erp-kpi .val{font-size:18px;font-weight:800;margin-top:4px}
+.erp-kpi.inc .val{color:var(--success)}
+.erp-kpi.exp .val{color:var(--danger)}
+.erp-kpi.bal .val{background:linear-gradient(135deg,#fbbf24,#f97316);-webkit-background-clip:text;background-clip:text;color:transparent}
+.erp-toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;align-items:center}
+.erp-toolbar input,.erp-toolbar select{background:var(--secondary);color:var(--fg);border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:13px}
+.erp-toolbar .grow{flex:1;min-width:160px}
+.erp-table-wrap{overflow:auto;border:1px solid var(--border);border-radius:10px;background:var(--card)}
+.erp-table{width:100%;border-collapse:collapse;font-size:13px;min-width:600px}
+.erp-table th,.erp-table td{padding:9px 10px;text-align:left;border-bottom:1px solid var(--border);vertical-align:top}
+.erp-table th{background:var(--secondary);color:#fbbf24;font-weight:700;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;position:sticky;top:0}
+.erp-table tr:hover td{background:rgba(249,115,22,.06)}
+.erp-table .num{text-align:right;font-variant-numeric:tabular-nums}
+.erp-table .pos{color:var(--success);font-weight:700}
+.erp-table .neg{color:var(--danger);font-weight:700}
+.erp-table .actions{white-space:nowrap}
+.erp-table .actions button{background:var(--secondary);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:3px 8px;margin-right:4px;cursor:pointer;font-size:11px}
+.erp-table .actions button:hover{border-color:var(--primary)}
+.erp-empty{padding:24px;text-align:center;color:var(--muted);background:var(--card);border:1px dashed var(--border);border-radius:10px}
+.erp-chip{display:inline-block;padding:2px 8px;border-radius:999px;font-size:10.5px;font-weight:700;background:var(--secondary);border:1px solid var(--border)}
+.erp-chip.ok{background:var(--success-bg);color:var(--success);border-color:transparent}
+.erp-chip.bad{background:var(--danger-bg);color:var(--danger);border-color:transparent}
+.erp-chip.warn{background:rgba(251,191,36,.18);color:#fbbf24;border-color:transparent}
+.erp-section-title{font-size:14px;font-weight:700;color:#fbbf24;margin:12px 0 8px;display:flex;align-items:center;gap:6px}
+.erp-export-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.erp-export-row .btn{font-size:12px;padding:6px 10px}
+.erp-grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px}
+.erp-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px}
+.erp-bar{height:18px;background:var(--secondary);border-radius:6px;overflow:hidden;margin:4px 0}
+.erp-bar > div{height:100%;background:linear-gradient(90deg,#f97316,#fbbf24)}
+.erp-chart{width:100%;height:220px}
+.erp-mini{font-size:11px;color:var(--muted)}
+@media(max-width:640px){
+  .erp-tab{padding:6px 9px;font-size:11.5px}
+  .erp-kpi .val{font-size:15px}
+}
+@media print{
+  header,#erp-tabs,.erp-toolbar,.erp-export-row,.head-row .btn,.sidebar,.bottom-nav{display:none !important}
+  body{background:#fff;color:#000}
+  .panel,.erp-card,.erp-table-wrap{background:#fff;border-color:#ccc;color:#000}
+  .erp-table th{background:#eee;color:#333}
+}
+</style>
+<script>
+/* =====================================================================
+   SCOPE SOLAR ERP & ACCOUNTS MODULE
+   Single-file integration. Uses existing loadProjects(), loadJSON, saveJSON.
+   Storage keys all prefixed erp-*. Permissions: relies on existing
+   isAdminUser() / applyAdminUI() — no new auth.
+   ===================================================================== */
+(function(){
+  const K = {
+    inc:'erp-incomes-v1', exp:'erp-expenses-v1',
+    cust:'erp-customers-v1', sup:'erp-suppliers-v1',
+    emp:'erp-employees-v1', pay:'erp-payroll-v1',
+    inst:'erp-installers-v1', fab:'erp-fabricators-v1',
+    inv:'erp-inventory-v1', invTx:'erp-invtx-v1',
+    mat:'erp-material-v1', veh:'erp-vehicles-v1', fuel:'erp-fuel-v1',
+    bank:'erp-banks-v1',
+    pmeta:'erp-projectmeta-v1' // financial overlay on projects
+  };
+  const lj=(k)=>{ try{return JSON.parse(localStorage.getItem(k))||[]}catch(e){return []}};
+  const sj=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+  const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  const esc=(s)=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const money=(n)=>'Rs '+(Number(n)||0).toLocaleString('en-PK');
+  const today=()=>new Date().toISOString().slice(0,10);
+  const fmtDate=(d)=>d||'-';
+
+  // ---- Project sync ----
+  function projects(){
+    try { return (typeof loadProjects==='function'? loadProjects():[]) || []; } catch(e){ return []; }
+  }
+  function projectKey(p){ return 'p_'+(p.sr ?? (p.client+'|'+p.location)); }
+  function projectName(p){ return (p.client||'')+' — '+(p.location||''); }
+  function projectMeta(){ // overlay with finance fields
+    const overlay = (lj(K.pmeta)||[]).reduce((m,x)=>{m[x.key]=x;return m;},{});
+    return projects().map(p=>{
+      const key = projectKey(p);
+      const o = overlay[key] || {};
+      return {
+        key, sr:p.sr, client:p.client||'', location:p.location||'',
+        capacity: o.capacity || p.capacity || '',
+        value: Number(o.value)||0,
+        status: o.status || 'Active',
+        installStatus: o.installStatus || 'Pending',
+        team: o.team || '',
+        contact: o.contact || '',
+        createdAt: o.createdAt || ''
+      };
+    });
+  }
+  function saveProjectMeta(key, patch){
+    const arr = lj(K.pmeta);
+    const i = arr.findIndex(x=>x.key===key);
+    if(i>=0) arr[i] = {...arr[i], ...patch, key};
+    else arr.push({key, ...patch});
+    sj(K.pmeta, arr);
+  }
+
+  // ---- Computations / reports ----
+  function projectFinance(){
+    const list = projectMeta();
+    const inc = lj(K.inc), exp = lj(K.exp), mat = lj(K.mat), fuel = lj(K.fuel);
+    return list.map(p=>{
+      const recv = inc.filter(x=>x.project===p.key).reduce((s,x)=>s+(+x.amount||0),0);
+      const matCost = mat.filter(x=>x.project===p.key && x.type==='issue').reduce((s,x)=>s+(+x.value||0),0) -
+                      mat.filter(x=>x.project===p.key && x.type==='return').reduce((s,x)=>s+(+x.value||0),0);
+      const fuelCost = fuel.filter(x=>x.project===p.key).reduce((s,x)=>s+(+x.amount||0),0);
+      const otherExp = exp.filter(x=>x.project===p.key).reduce((s,x)=>s+(+x.amount||0),0);
+      const totalCost = matCost+fuelCost+otherExp;
+      const outstanding = (p.value||0) - recv;
+      const grossProfit = (p.value||0) - matCost;
+      const netProfit = (p.value||0) - totalCost;
+      return {...p, received:recv, matCost, fuelCost, otherExp, totalCost, outstanding, grossProfit, netProfit};
+    });
+  }
+  function totals(){
+    const inc = lj(K.inc).reduce((s,x)=>s+(+x.amount||0),0);
+    const exp = lj(K.exp).reduce((s,x)=>s+(+x.amount||0),0);
+    const fuel = lj(K.fuel).reduce((s,x)=>s+(+x.amount||0),0);
+    const pay = lj(K.pay).reduce((s,x)=>s+(+x.amount||0),0);
+    const totalExp = exp+fuel+pay;
+    const pf = projectFinance();
+    const recv = pf.reduce((s,p)=>s+p.received,0);
+    const outR = pf.reduce((s,p)=>s+Math.max(0,p.outstanding),0);
+    const invVal = lj(K.inv).reduce((s,x)=>s+(+x.qty||0)*(+x.rate||0),0);
+    // payables = unpaid supplier exp (mark 'unpaid' optional)
+    const payables = lj(K.exp).filter(x=>x.unpaid).reduce((s,x)=>s+(+x.amount||0),0);
+    const active = pf.filter(p=>p.status==='Active').length;
+    const completed = pf.filter(p=>p.status==='Completed').length;
+    return {inc, totalExp, net: inc-totalExp, recv, outR, invVal, payables, active, completed,
+            employees: lj(K.emp).length, vehicles: lj(K.veh).length,
+            gross: inc - pf.reduce((s,p)=>s+p.matCost,0)};
+  }
+
+  // ---- Tab rendering ----
+  const tabs = {};
+  let activeTab = 'dashboard';
+  function setTab(name){
+    activeTab = name;
+    document.querySelectorAll('#erp-tabs .erp-tab').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
+    const body = document.getElementById('erp-body');
+    body.innerHTML='';
+    (tabs[name]||tabs.dashboard)(body);
+  }
+  window.erpSetTab = setTab;
+
+  // ---- Reusable: table renderer ----
+  function table(cols, rows, opts={}){
+    const head = '<tr>'+cols.map(c=>`<th class="${c.cls||''}">${esc(c.label)}</th>`).join('')+'</tr>';
+    const body = rows.length ? rows.map(r=>'<tr>'+cols.map(c=>{
+      const v = typeof c.get==='function'? c.get(r) : r[c.key];
+      return `<td class="${c.cls||''}">${c.html?v:esc(v??'')}</td>`;
+    }).join('')+'</tr>').join('') : `<tr><td colspan="${cols.length}" style="text-align:center;color:var(--muted);padding:18px">No records.</td></tr>`;
+    return `<div class="erp-table-wrap"><table class="erp-table" ${opts.id?`id="${opts.id}"`:''}><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
+  }
+  function kpi(items){
+    return `<div class="erp-kpis">${items.map(i=>`<div class="erp-kpi ${i.cls||''}"><div class="lbl">${esc(i.lbl)}</div><div class="val">${i.html||esc(i.val||'')}</div></div>`).join('')}</div>`;
+  }
+  function exportBar(targetId, title){
+    return `<div class="erp-export-row">
+      <button class="btn ghost" onclick="erpExport('${targetId}','csv','${esc(title)}')">⬇ Excel/CSV</button>
+      <button class="btn ghost" onclick="erpExport('${targetId}','html','${esc(title)}')">⬇ HTML</button>
+      <button class="btn ghost" onclick="erpExport('${targetId}','print','${esc(title)}')">🖨 Print / PDF</button>
+    </div>`;
+  }
+  function projectOptions(selected){
+    const list = projectMeta();
+    return '<option value="">— none —</option>' +
+      list.map(p=>`<option value="${esc(p.key)}" ${p.key===selected?'selected':''}>${esc(projectName(p))}</option>`).join('');
+  }
+
+  // ---- DASHBOARD ----
+  tabs.dashboard = (el)=>{
+    const t = totals();
+    el.innerHTML =
+      kpi([
+        {lbl:'Total Income', val:money(t.inc), cls:'inc'},
+        {lbl:'Total Expenses', val:money(t.totalExp), cls:'exp'},
+        {lbl:'Net Profit', val:money(t.net), cls:'bal'},
+        {lbl:'Gross Profit', val:money(t.gross), cls:'bal'},
+        {lbl:'Active Projects', val:t.active},
+        {lbl:'Completed Projects', val:t.completed},
+        {lbl:'Inventory Value', val:money(t.invVal)},
+        {lbl:'Customer Payments', val:money(t.recv), cls:'inc'},
+        {lbl:'Outstanding Receivable', val:money(t.outR), cls:'exp'},
+        {lbl:'Outstanding Payable', val:money(t.payables), cls:'exp'},
+        {lbl:'Employees', val:t.employees},
+        {lbl:'Vehicles', val:t.vehicles}
+      ]) +
+      `<div class="erp-grid-2">
+        <div class="erp-card">
+          <div class="erp-section-title">📈 Income vs Expense (last 6 months)</div>
+          ${monthBarChart()}
+        </div>
+        <div class="erp-card">
+          <div class="erp-section-title">🏆 Top Projects by Net Profit</div>
+          ${topProjectsChart()}
+        </div>
+      </div>
+      <div class="erp-card" style="margin-top:12px">
+        <div class="erp-section-title">📋 Recent Activity</div>
+        ${recentActivity()}
+      </div>`;
+  };
+
+  function monthBarChart(){
+    const months=[]; const d=new Date();
+    for(let i=5;i>=0;i--){ const m=new Date(d.getFullYear(),d.getMonth()-i,1); months.push(m.toISOString().slice(0,7)); }
+    const inc=months.map(m=>lj(K.inc).filter(x=>(x.date||'').startsWith(m)).reduce((s,x)=>s+(+x.amount||0),0));
+    const exp=months.map(m=>{
+      const e1=lj(K.exp).filter(x=>(x.date||'').startsWith(m)).reduce((s,x)=>s+(+x.amount||0),0);
+      const e2=lj(K.fuel).filter(x=>(x.date||'').startsWith(m)).reduce((s,x)=>s+(+x.amount||0),0);
+      const e3=lj(K.pay).filter(x=>(x.date||'').startsWith(m)).reduce((s,x)=>s+(+x.amount||0),0);
+      return e1+e2+e3;
+    });
+    const max = Math.max(1, ...inc, ...exp);
+    const w=500,h=200,bw=(w-40)/months.length;
+    let svg=`<svg class="erp-chart" viewBox="0 0 ${w} ${h+30}" preserveAspectRatio="xMidYMid meet">`;
+    months.forEach((m,i)=>{
+      const x=20+i*bw;
+      const ih=(inc[i]/max)*h, eh=(exp[i]/max)*h;
+      svg+=`<rect x="${x+4}" y="${h-ih}" width="${bw/2-6}" height="${ih}" fill="#10b981"/>`;
+      svg+=`<rect x="${x+bw/2+2}" y="${h-eh}" width="${bw/2-6}" height="${eh}" fill="#ef4444"/>`;
+      svg+=`<text x="${x+bw/2}" y="${h+14}" text-anchor="middle" fill="#9bb3d9" font-size="10">${m.slice(2)}</text>`;
+    });
+    svg+=`<text x="20" y="${h+28}" fill="#10b981" font-size="10">■ Income</text>`;
+    svg+=`<text x="80" y="${h+28}" fill="#ef4444" font-size="10">■ Expense</text>`;
+    svg+='</svg>';
+    return svg;
+  }
+  function topProjectsChart(){
+    const pf = projectFinance().sort((a,b)=>b.netProfit-a.netProfit).slice(0,5);
+    if(!pf.length) return '<div class="erp-empty">No project data yet.</div>';
+    const max = Math.max(1, ...pf.map(p=>Math.abs(p.netProfit)));
+    return pf.map(p=>`<div style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;font-size:12px"><span>${esc(projectName(p))}</span><span class="${p.netProfit>=0?'pos':'neg'}">${money(p.netProfit)}</span></div>
+      <div class="erp-bar"><div style="width:${Math.abs(p.netProfit)/max*100}%"></div></div>
+    </div>`).join('');
+  }
+  function recentActivity(){
+    const all = [
+      ...lj(K.inc).map(x=>({...x,_t:'Income',_amt:+x.amount||0,_sign:'+'})),
+      ...lj(K.exp).map(x=>({...x,_t:'Expense',_amt:+x.amount||0,_sign:'-'})),
+      ...lj(K.fuel).map(x=>({...x,_t:'Fuel',_amt:+x.amount||0,_sign:'-'})),
+      ...lj(K.pay).map(x=>({...x,_t:'Salary',_amt:+x.amount||0,_sign:'-'}))
+    ].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,8);
+    if(!all.length) return '<div class="erp-empty">No activity yet. Use <b>Daily Entry</b> tab to start.</div>';
+    return table(
+      [{label:'Date',key:'date'},{label:'Type',key:'_t'},{label:'Party / Notes', get:r=>r.party||r.vehicle||r.employee||r.notes||'-'},
+       {label:'Amount',cls:'num',get:r=>r._sign+' '+money(r._amt),html:true}],
+      all);
+  }
+
+  // ---- DAILY ENTRY ----
+  tabs.daily = (el)=>{
+    el.innerHTML = `<div class="erp-card">
+      <div class="erp-section-title">⚡ Single-Entry Daily Operations</div>
+      <p class="erp-mini">Enter once — system auto-updates Inventory, Accounts, Project Costs, Vehicle log, Payroll & Reports.</p>
+      <div class="erp-grid-2">
+        <div class="erp-card"><h4 style="margin:0 0 8px">⛽ Fuel Entry</h4>
+          <button class="btn" onclick="erpOpen('fuel')">+ Add Fuel Expense</button>
+          <p class="erp-mini">Updates: Vehicle log → Expenses → Accounts → P&amp;L → Reports</p></div>
+        <div class="erp-card"><h4 style="margin:0 0 8px">🏢 Office Expense</h4>
+          <button class="btn" onclick="erpOpen('expense', {category:'Office Expense'})">+ Add Office Expense</button>
+          <p class="erp-mini">Updates: Expenses → Accounts → Reports</p></div>
+        <div class="erp-card"><h4 style="margin:0 0 8px">📦 Material Purchase</h4>
+          <button class="btn" onclick="erpOpen('invtx',{type:'purchase'})">+ Record Purchase</button>
+          <p class="erp-mini">Updates: Inventory → Supplier Ledger → Accounts → Reports</p></div>
+        <div class="erp-card"><h4 style="margin:0 0 8px">🚚 Material Issue to Site</h4>
+          <button class="btn" onclick="erpOpen('material',{type:'issue'})">+ Issue Material</button>
+          <p class="erp-mini">Updates: Inventory → Project Cost → Material History</p></div>
+        <div class="erp-card"><h4 style="margin:0 0 8px">↩ Material Return</h4>
+          <button class="btn" onclick="erpOpen('material',{type:'return'})">+ Return Material</button>
+          <p class="erp-mini">Updates: Inventory → Project Cost → Material History</p></div>
+        <div class="erp-card"><h4 style="margin:0 0 8px">💵 Salary Payment</h4>
+          <button class="btn" onclick="erpOpen('payroll')">+ Pay Salary / Advance</button>
+          <p class="erp-mini">Updates: Payroll → Employee Ledger → Accounts → P&amp;L</p></div>
+        <div class="erp-card"><h4 style="margin:0 0 8px">📥 Customer Payment</h4>
+          <button class="btn" onclick="erpOpen('income',{category:'Customer Payment'})">+ Record Payment</button>
+          <p class="erp-mini">Updates: Income → Customer Ledger → Project Receivable → P&amp;L</p></div>
+        <div class="erp-card"><h4 style="margin:0 0 8px">🔧 Supplier Payment</h4>
+          <button class="btn" onclick="erpOpen('expense',{category:'Supplier Payment'})">+ Pay Supplier</button>
+          <p class="erp-mini">Updates: Expense → Supplier Ledger → Accounts → P&amp;L</p></div>
+      </div>
+    </div>`;
+  };
+
+  // ---- INCOME ----
+  tabs.income = (el)=>{
+    const rows = lj(K.inc).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    const tot = rows.reduce((s,x)=>s+(+x.amount||0),0);
+    el.innerHTML = `<div class="erp-toolbar">
+      <button class="btn" onclick="erpOpen('income')">+ Add Income</button>
+      <input class="grow" id="erp-q-inc" placeholder="Search…" oninput="erpFilter('income-tbl', this.value)"/>
+      <div class="erp-chip ok">Total: ${money(tot)}</div>
+    </div>` + exportBar('income-tbl','Income Records') +
+    table([
+      {label:'Date',key:'date'},{label:'Category',key:'category'},{label:'Customer/Party',key:'party'},
+      {label:'Project',get:r=>projectMeta().find(p=>p.key===r.project)?projectName(projectMeta().find(p=>p.key===r.project)):'-'},
+      {label:'Method',key:'method'},{label:'Ref',key:'ref'},
+      {label:'Amount',cls:'num pos',get:r=>money(r.amount),html:true},
+      {label:'',cls:'actions',get:r=>`<button onclick="erpOpen('income','${r.id}')">Edit</button>`,html:true}
+    ], rows, {id:'income-tbl'});
+  };
+
+  // ---- EXPENSE ----
+  tabs.expense = (el)=>{
+    const rows = lj(K.exp).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    const tot = rows.reduce((s,x)=>s+(+x.amount||0),0);
+    el.innerHTML = `<div class="erp-toolbar">
+      <button class="btn" onclick="erpOpen('expense')">+ Add Expense</button>
+      <input class="grow" id="erp-q-exp" placeholder="Search…" oninput="erpFilter('exp-tbl', this.value)"/>
+      <div class="erp-chip bad">Total: ${money(tot)}</div>
+    </div>` + exportBar('exp-tbl','Expense Records') +
+    table([
+      {label:'Date',key:'date'},{label:'Category',key:'category'},{label:'Payee',key:'party'},
+      {label:'Project',get:r=>{const p=projectMeta().find(p=>p.key===r.project);return p?projectName(p):'-'}},
+      {label:'Method',key:'method'},
+      {label:'Status',get:r=>r.unpaid?'<span class="erp-chip bad">Unpaid</span>':'<span class="erp-chip ok">Paid</span>',html:true},
+      {label:'Amount',cls:'num neg',get:r=>money(r.amount),html:true},
+      {label:'',cls:'actions',get:r=>`<button onclick="erpOpen('expense','${r.id}')">Edit</button>`,html:true}
+    ], rows, {id:'exp-tbl'});
+  };
+
+  // ---- CUSTOMERS / CRM ----
+  tabs.customers = (el)=>{
+    // Auto-customer list = unique clients from projects + manual entries
+    const fromProj = projectMeta().map(p=>({
+      id:'auto_'+p.key, name:p.client, contact:p.contact||'', location:p.location, source:'Project',
+      value:p.value, status:p.status
+    }));
+    const manual = lj(K.cust);
+    const all = [...fromProj, ...manual];
+    el.innerHTML = `<div class="erp-toolbar">
+      <button class="btn" onclick="erpOpen('customer')">+ Add Customer / Lead</button>
+      <input class="grow" placeholder="Search…" oninput="erpFilter('cust-tbl', this.value)"/>
+    </div>` + exportBar('cust-tbl','Customer Database') +
+    table([
+      {label:'Name',key:'name'},{label:'Contact',key:'contact'},{label:'Location',key:'location'},
+      {label:'Source',get:r=>`<span class="erp-chip ${r.source==='Project'?'ok':''}">${esc(r.source||'Lead')}</span>`,html:true},
+      {label:'Project Value',cls:'num',get:r=>r.value?money(r.value):'-'},
+      {label:'Status',key:'status'},
+      {label:'',cls:'actions',get:r=>`<button onclick="erpShowLedger('customer','${esc(r.name)}')">📒 Ledger</button>${r.id.startsWith('auto_')?'':`<button onclick="erpOpen('customer','${r.id}')">Edit</button>`}`,html:true}
+    ], all, {id:'cust-tbl'});
+  };
+
+  // ---- SUPPLIERS ----
+  tabs.suppliers = (el)=>{
+    const rows = lj(K.sup);
+    el.innerHTML = `<div class="erp-toolbar">
+      <button class="btn" onclick="erpOpen('supplier')">+ Add Supplier</button>
+      <input class="grow" placeholder="Search…" oninput="erpFilter('sup-tbl', this.value)"/>
+    </div>` + exportBar('sup-tbl','Suppliers') +
+    table([
+      {label:'Name',key:'name'},{label:'Contact',key:'contact'},{label:'Category',key:'category'},
+      {label:'Outstanding',cls:'num',get:r=>{
+        const exp = lj(K.exp).filter(x=>x.party===r.name && x.unpaid).reduce((s,x)=>s+(+x.amount||0),0);
+        return money(exp);
+      }},
+      {label:'',cls:'actions',get:r=>`<button onclick="erpShowLedger('supplier','${esc(r.name)}')">📒 Ledger</button><button onclick="erpOpen('supplier','${r.id}')">Edit</button>`,html:true}
+    ], rows, {id:'sup-tbl'});
+  };
+
+  // ---- EMPLOYEES ----
+  tabs.employees = (el)=>{
+    const rows = lj(K.emp);
+    el.innerHTML = `<div class="erp-toolbar">
+      <button class="btn" onclick="erpOpen('employee')">+ Add Employee</button>
+    </div>` + exportBar('emp-tbl','Employees') +
+    table([
+      {label:'Name',key:'name'},{label:'Role',key:'role'},{label:'Contact',key:'contact'},
+      {label:'CNIC',key:'cnic'},
+      {label:'Salary',cls:'num',get:r=>money(r.salary)},
+      {label:'Joined',key:'joined'},
+      {label:'',cls:'actions',get:r=>`<button onclick="erpShowLedger('employee','${esc(r.name)}')">📒 Ledger</button><button onclick="erpOpen('employee','${r.id}')">Edit</button>`,html:true}
+    ], rows, {id:'emp-tbl'});
+  };
+
+  // ---- PAYROLL ----
+  tabs.payroll = (el)=>{
+    const rows = lj(K.pay).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    el.innerHTML = `<div class="erp-toolbar">
+      <button class="btn" onclick="erpOpen('payroll')">+ Pay Salary / Advance</button>
+    </div>` + exportBar('pay-tbl','Payroll') +
+    table([
+      {label:'Date',key:'date'},{label:'Employee',key:'employee'},{label:'Type',key:'kind'},
+      {label:'Method',key:'method'},{label:'Notes',key:'notes'},
+      {label:'Amount',cls:'num neg',get:r=>money(r.amount),html:true},
+      {label:'',cls:'actions',get:r=>`<button onclick="erpOpen('payroll','${r.id}')">Edit</button>`,html:true}
+    ], rows, {id:'pay-tbl'});
+  };
+
+  // ---- INSTALLERS / FABRICATORS ----
+  tabs.installers = (el)=>{
+    const inst = lj(K.inst).map(x=>({...x,_kind:'Installer'}));
+    const fab = lj(K.fab).map(x=>({...x,_kind:'Fabricator'}));
+    const rows = [...inst,...fab];
+    el.innerHTML = `<div class="erp-toolbar">
+      <button class="btn" onclick="erpOpen('installer')">+ Add Installer</button>
+      <button class="btn ghost" onclick="erpOpen('fabricator')">+ Add Fabricator</button>
+    </div>` + exportBar('inst-tbl','Installers & Fabricators') +
+    table([
+      {label:'Type',key:'_kind'},{label:'Name',key:'name'},{label:'Team Size',key:'teamSize'},
+      {label:'Contact',key:'contact'},{label:'Rate',cls:'num',get:r=>money(r.rate)},
+      {label:'',cls:'actions',get:r=>`<button onclick="erpShowLedger('${r._kind.toLowerCase()}','${esc(r.name)}')">📒 Ledger</button><button onclick="erpOpen('${r._kind.toLowerCase()}','${r.id}')">Edit</button>`,html:true}
+    ], rows, {id:'inst-tbl'});
+  };
+
+  // ---- INVENTORY ----
+  tabs.inventory = (el)=>{
+    const rows = lj(K.inv).map(x=>({...x, value:(+x.qty||0)*(+x.rate||0), low:(+x.qty||0)<=(+x.minQty||0)}));
+    const totVal = rows.reduce((s,x)=>s+x.value,0);
+    const low = rows.filter(x=>x.low).length;
+    el.innerHTML = kpi([
+      {lbl:'Stock Items', val:rows.length},
+      {lbl:'Inventory Value', val:money(totVal), cls:'bal'},
+      {lbl:'Low Stock Items', val:low, cls:'exp'}
+    ]) + `<div class="erp-toolbar">
+      <button class="btn" onclick="erpOpen('inventory')">+ Add Item</button>
+      <button class="btn ghost" onclick="erpOpen('invtx',{type:'purchase'})">📥 Purchase</button>
+      <button class="btn ghost" onclick="erpOpen('invtx',{type:'adjust'})">⚙ Adjust</button>
+    </div>` + exportBar('inv-tbl','Inventory') +
+    table([
+      {label:'Item',key:'name'},{label:'Category',key:'category'},
+      {label:'Qty',cls:'num',key:'qty'},{label:'Unit',key:'unit'},
+      {label:'Rate',cls:'num',get:r=>money(r.rate)},
+      {label:'Value',cls:'num',get:r=>money(r.value)},
+      {label:'Min',cls:'num',key:'minQty'},
+      {label:'Supplier',key:'supplier'},
+      {label:'Status',get:r=>r.low?'<span class="erp-chip bad">LOW</span>':'<span class="erp-chip ok">OK</span>',html:true},
+      {label:'',cls:'actions',get:r=>`<button onclick="erpOpen('inventory','${r.id}')">Edit</button>`,html:true}
+    ], rows, {id:'inv-tbl'}) +
+    `<div class="erp-section-title" style="margin-top:14px">🔄 Stock Transactions</div>` +
+    table([
+      {label:'Date',key:'date'},{label:'Type',key:'type'},{label:'Item',key:'item'},
+      {label:'Qty',cls:'num',key:'qty'},{label:'Rate',cls:'num',get:r=>money(r.rate)},
+      {label:'Value',cls:'num',get:r=>money((+r.qty||0)*(+r.rate||0))},
+      {label:'Supplier',key:'supplier'},{label:'Notes',key:'notes'}
+    ], lj(K.invTx).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')), {id:'invtx-tbl'});
+  };
+
+  // ---- MATERIAL TRACKING ----
+  tabs.material = (el)=>{
+    const rows = lj(K.mat).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    el.innerHTML = `<div class="erp-toolbar">
+      <button class="btn" onclick="erpOpen('material',{type:'issue'})">📤 Issue to Site</button>
+      <button class="btn ghost" onclick="erpOpen('material',{type:'return'})">↩ Return from Site</button>
+    </div>` + exportBar('mat-tbl','Material Tracking') +
+    table([
+      {label:'Date',key:'date'},
+      {label:'Type',get:r=>r.type==='issue'?'<span class="erp-chip bad">ISSUE</span>':'<span class="erp-chip ok">RETURN</span>',html:true},
+      {label:'Project',get:r=>{const p=projectMeta().find(p=>p.key===r.project);return p?projectName(p):'-'}},
+      {label:'Item',key:'item'},
+      {label:'Qty',cls:'num',key:'qty'},{label:'Unit',key:'unit'},
+      {label:'Value',cls:'num',get:r=>money(r.value)},
+      {label:'By',key:'by'},{label:'Notes',key:'notes'}
+    ], rows, {id:'mat-tbl'});
+  };
+
+  // ---- VEHICLES / FUEL ----
+  tabs.vehicles = (el)=>{
+    const veh = lj(K.veh);
+    const fuel = lj(K.fuel);
+    const summary = veh.map(v=>{
+      const fs = fuel.filter(f=>f.vehicle===v.regNo);
+      return {...v, fuelSpent: fs.reduce((s,f)=>s+(+f.amount||0),0), fuelLitres: fs.reduce((s,f)=>s+(+f.litres||0),0)};
+    });
+    el.innerHTML = `<div class="erp-toolbar">
+      <button class="btn" onclick="erpOpen('vehicle')">+ Add Vehicle / Bike</button>
+      <button class="btn ghost" onclick="erpOpen('fuel')">⛽ Fuel Entry</button>
+    </div>` + exportBar('veh-tbl','Vehicles') +
+    `<div class="erp-section-title">🚗 Vehicles & Bikes</div>` +
+    table([
+      {label:'Type',key:'kind'},{label:'Reg No',key:'regNo'},{label:'Make/Model',key:'model'},
+      {label:'Assigned To',key:'assignedTo'},
+      {label:'Fuel Spent',cls:'num',get:r=>money(r.fuelSpent)},
+      {label:'Litres',cls:'num',key:'fuelLitres'},
+      {label:'',cls:'actions',get:r=>`<button onclick="erpShowLedger('vehicle','${esc(r.regNo)}')">📒 Log</button><button onclick="erpOpen('vehicle','${r.id}')">Edit</button>`,html:true}
+    ], summary, {id:'veh-tbl'}) +
+    `<div class="erp-section-title">⛽ Fuel & Maintenance Log</div>` +
+    table([
+      {label:'Date',key:'date'},{label:'Vehicle',key:'vehicle'},{label:'Type',key:'kind'},
+      {label:'Litres',cls:'num',key:'litres'},{label:'Odometer',cls:'num',key:'odo'},
+      {label:'Project',get:r=>{const p=projectMeta().find(p=>p.key===r.project);return p?projectName(p):'-'}},
+      {label:'Notes',key:'notes'},
+      {label:'Amount',cls:'num neg',get:r=>money(r.amount),html:true},
+      {label:'',cls:'actions',get:r=>`<button onclick="erpOpen('fuel','${r.id}')">Edit</button>`,html:true}
+    ], fuel.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')), {id:'fuel-tbl'});
+  };
+
+  // ---- PROJECT FINANCE ----
+  tabs.projectfin = (el)=>{
+    const pf = projectFinance();
+    el.innerHTML = `<div class="erp-toolbar">
+      <input class="grow" placeholder="Search project…" oninput="erpFilter('pf-tbl', this.value)"/>
+    </div>` + exportBar('pf-tbl','Project Profitability') +
+    table([
+      {label:'Sr',key:'sr'},{label:'Client',key:'client'},{label:'Location',key:'location'},
+      {label:'kW',key:'capacity'},
+      {label:'Value',cls:'num',get:r=>money(r.value)},
+      {label:'Received',cls:'num pos',get:r=>money(r.received),html:true},
+      {label:'Outstanding',cls:'num neg',get:r=>money(r.outstanding),html:true},
+      {label:'Material',cls:'num',get:r=>money(r.matCost)},
+      {label:'Fuel',cls:'num',get:r=>money(r.fuelCost)},
+      {label:'Other Exp',cls:'num',get:r=>money(r.otherExp)},
+      {label:'Total Cost',cls:'num',get:r=>money(r.totalCost)},
+      {label:'Gross P',cls:'num',get:r=>`<span class="${r.grossProfit>=0?'pos':'neg'}">${money(r.grossProfit)}</span>`,html:true},
+      {label:'Net P',cls:'num',get:r=>`<span class="${r.netProfit>=0?'pos':'neg'}">${money(r.netProfit)}</span>`,html:true},
+      {label:'Status',get:r=>`<span class="erp-chip ${r.status==='Completed'?'ok':'warn'}">${esc(r.status)}</span>`,html:true},
+      {label:'',cls:'actions',get:r=>`<button onclick="erpEditProject('${r.key}')">Edit Finance</button><button onclick="erpShowLedger('project','${esc(r.key)}')">📒 Ledger</button>`,html:true}
+    ], pf, {id:'pf-tbl'});
+  };
+
+  // ---- LEDGERS ----
+  tabs.ledgers = (el)=>{
+    const customers = [...new Set([...projectMeta().map(p=>p.client), ...lj(K.cust).map(c=>c.name)].filter(Boolean))];
+    const suppliers = lj(K.sup).map(s=>s.name);
+    const employees = lj(K.emp).map(e=>e.name);
+    const installers = lj(K.inst).map(i=>i.name);
+    const fabricators = lj(K.fab).map(f=>f.name);
+    const projs = projectMeta();
+    el.innerHTML = `<div class="erp-grid-2">
+      <div class="erp-card"><div class="erp-section-title">👤 Customer Ledger</div>
+        <select id="led-cust" onchange="erpShowLedger('customer', this.value)"><option value="">— pick customer —</option>${customers.map(n=>`<option>${esc(n)}</option>`).join('')}</select></div>
+      <div class="erp-card"><div class="erp-section-title">🏭 Supplier Ledger</div>
+        <select id="led-sup" onchange="erpShowLedger('supplier', this.value)"><option value="">— pick supplier —</option>${suppliers.map(n=>`<option>${esc(n)}</option>`).join('')}</select></div>
+      <div class="erp-card"><div class="erp-section-title">👷 Employee Ledger</div>
+        <select id="led-emp" onchange="erpShowLedger('employee', this.value)"><option value="">— pick employee —</option>${employees.map(n=>`<option>${esc(n)}</option>`).join('')}</select></div>
+      <div class="erp-card"><div class="erp-section-title">🔧 Installer Ledger</div>
+        <select onchange="erpShowLedger('installer', this.value)"><option value="">— pick installer —</option>${installers.map(n=>`<option>${esc(n)}</option>`).join('')}</select></div>
+      <div class="erp-card"><div class="erp-section-title">🛠 Fabricator Ledger</div>
+        <select onchange="erpShowLedger('fabricator', this.value)"><option value="">— pick fabricator —</option>${fabricators.map(n=>`<option>${esc(n)}</option>`).join('')}</select></div>
+      <div class="erp-card"><div class="erp-section-title">📋 Project Ledger</div>
+        <select onchange="erpShowLedger('project', this.value)"><option value="">— pick project —</option>${projs.map(p=>`<option value="${esc(p.key)}">${esc(projectName(p))}</option>`).join('')}</select></div>
+    </div>
+    <div id="erp-ledger-view" style="margin-top:14px"></div>`;
+  };
+
+  window.erpShowLedger = (kind, key)=>{
+    if(!key) return;
+    const out = document.getElementById('erp-ledger-view') || document.getElementById('erp-body');
+    const rows = ledgerRows(kind, key);
+    const opening = 0;
+    let bal = opening;
+    const enriched = rows.map(r=>{ bal += (r.debit||0)-(r.credit||0); return {...r,balance:bal}; });
+    const totDebit = rows.reduce((s,r)=>s+(r.debit||0),0);
+    const totCredit = rows.reduce((s,r)=>s+(r.credit||0),0);
+    const tableHtml = table([
+      {label:'Date',key:'date'},{label:'Particulars',key:'desc'},{label:'Ref',key:'ref'},
+      {label:'Debit',cls:'num',get:r=>r.debit?money(r.debit):'-'},
+      {label:'Credit',cls:'num',get:r=>r.credit?money(r.credit):'-'},
+      {label:'Balance',cls:'num',get:r=>money(r.balance)}
+    ], enriched, {id:'ledger-tbl'});
+    const heading = kind==='project' ? projectName(projectMeta().find(p=>p.key===key)||{client:key,location:''}) : key;
+    out.innerHTML = `<div class="erp-card">
+      <div class="head-row"><h3>📒 ${kind.toUpperCase()} LEDGER — ${esc(heading)}</h3></div>
+      ${exportBar('ledger-tbl', kind+' Ledger - '+heading)}
+      ${tableHtml}
+      <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:10px;padding:10px;background:var(--secondary);border-radius:8px">
+        <div><b>Total Debit:</b> ${money(totDebit)}</div>
+        <div><b>Total Credit:</b> ${money(totCredit)}</div>
+        <div><b>Closing Balance:</b> <span class="${bal>=0?'pos':'neg'}">${money(bal)}</span></div>
+      </div>
+    </div>`;
+    out.scrollIntoView({behavior:'smooth',block:'start'});
+  };
+
+  function ledgerRows(kind, key){
+    const r = [];
+    if(kind==='customer'){
+      lj(K.inc).filter(x=>x.party===key).forEach(x=>r.push({date:x.date,desc:x.category+' — '+(x.notes||''),ref:x.ref,credit:+x.amount||0}));
+      // Project value as debit when customer matches project client
+      projectMeta().filter(p=>p.client===key).forEach(p=>{ if(p.value) r.push({date:p.createdAt||'',desc:'Project Value: '+p.location,ref:'P'+p.sr,debit:+p.value||0}); });
+    } else if(kind==='supplier'){
+      lj(K.invTx).filter(x=>x.supplier===key && x.type==='purchase').forEach(x=>r.push({date:x.date,desc:'Purchase: '+x.item+' x'+x.qty,ref:x.id,debit:(+x.qty||0)*(+x.rate||0)}));
+      lj(K.exp).filter(x=>x.party===key).forEach(x=>r.push({date:x.date,desc:'Payment: '+x.category,ref:x.ref,credit:+x.amount||0}));
+    } else if(kind==='employee'){
+      const e = lj(K.emp).find(e=>e.name===key);
+      if(e && e.salary) r.push({date:e.joined||'',desc:'Monthly Salary',ref:'',debit:+e.salary||0});
+      lj(K.pay).filter(x=>x.employee===key).forEach(x=>r.push({date:x.date,desc:x.kind+' — '+(x.notes||''),ref:x.method,credit:+x.amount||0}));
+    } else if(kind==='installer' || kind==='fabricator'){
+      const key2 = kind==='installer'?K.inst:K.fab;
+      lj(key2).filter(i=>i.name===key).forEach(i=>{});
+      lj(K.exp).filter(x=>x.party===key).forEach(x=>r.push({date:x.date,desc:x.category,ref:x.ref,credit:+x.amount||0}));
+    } else if(kind==='vehicle'){
+      lj(K.fuel).filter(x=>x.vehicle===key).forEach(x=>r.push({date:x.date,desc:x.kind+' '+(x.litres?x.litres+'L ':'')+(x.notes||''),ref:x.odo||'',debit:+x.amount||0}));
+    } else if(kind==='project'){
+      const p = projectMeta().find(p=>p.key===key); if(!p) return r;
+      if(p.value) r.push({date:p.createdAt||'',desc:'Project Value (Contract)',ref:'P'+p.sr,debit:+p.value||0});
+      lj(K.inc).filter(x=>x.project===key).forEach(x=>r.push({date:x.date,desc:'Customer Payment: '+(x.party||''),ref:x.ref,credit:+x.amount||0}));
+      lj(K.mat).filter(x=>x.project===key && x.type==='issue').forEach(x=>r.push({date:x.date,desc:'Material Issued: '+x.item+' x'+x.qty,ref:'',debit:+x.value||0}));
+      lj(K.mat).filter(x=>x.project===key && x.type==='return').forEach(x=>r.push({date:x.date,desc:'Material Returned: '+x.item,ref:'',credit:+x.value||0}));
+      lj(K.fuel).filter(x=>x.project===key).forEach(x=>r.push({date:x.date,desc:'Fuel: '+(x.vehicle||''),ref:'',debit:+x.amount||0}));
+      lj(K.exp).filter(x=>x.project===key).forEach(x=>r.push({date:x.date,desc:'Expense: '+x.category,ref:x.ref,debit:+x.amount||0}));
+    }
+    return r.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  }
+
+  // ---- REPORTS ----
+  tabs.reports = (el)=>{
+    const t = totals();
+    el.innerHTML = `<div class="erp-grid-2">
+      <div class="erp-card"><div class="erp-section-title">📊 Profit & Loss Statement</div>
+        ${exportBar('pl-tbl','Profit and Loss')}
+        ${plStatement()}
+      </div>
+      <div class="erp-card"><div class="erp-section-title">💵 Cash Flow Summary</div>
+        ${cashFlowReport()}
+      </div>
+      <div class="erp-card"><div class="erp-section-title">📅 Period Reports</div>
+        <div class="erp-toolbar">
+          <select id="rep-period"><option value="day">Daily</option><option value="week">Weekly</option><option value="month" selected>Monthly</option><option value="year">Annual</option></select>
+          <input type="date" id="rep-date" value="${today()}"/>
+          <button class="btn" onclick="erpPeriodReport()">Generate</button>
+        </div>
+        <div id="rep-out" class="erp-mini">Select a period and click Generate.</div>
+      </div>
+      <div class="erp-card"><div class="erp-section-title">📦 Inventory Report</div>
+        ${exportBar('inv-rep','Inventory Report')}
+        ${inventoryReport()}
+      </div>
+    </div>`;
+  };
+
+  function plStatement(){
+    const inc = lj(K.inc);
+    const incByCat = {}; inc.forEach(x=>{incByCat[x.category||'Other Income']=(incByCat[x.category||'Other Income']||0)+(+x.amount||0)});
+    const exp = lj(K.exp);
+    const expByCat = {}; exp.forEach(x=>{expByCat[x.category||'Other Expense']=(expByCat[x.category||'Other Expense']||0)+(+x.amount||0)});
+    const fuelTot = lj(K.fuel).reduce((s,x)=>s+(+x.amount||0),0);
+    const payTot = lj(K.pay).reduce((s,x)=>s+(+x.amount||0),0);
+    const totInc = Object.values(incByCat).reduce((s,x)=>s+x,0);
+    const totExp = Object.values(expByCat).reduce((s,x)=>s+x,0)+fuelTot+payTot;
+    let html='<div class="erp-table-wrap"><table class="erp-table" id="pl-tbl"><thead><tr><th>Account</th><th class="num">Amount</th></tr></thead><tbody>';
+    html+='<tr><th colspan="2" style="color:#10b981">INCOME</th></tr>';
+    Object.entries(incByCat).forEach(([k,v])=>html+=`<tr><td>${esc(k)}</td><td class="num pos">${money(v)}</td></tr>`);
+    html+=`<tr><td><b>Total Income</b></td><td class="num pos"><b>${money(totInc)}</b></td></tr>`;
+    html+='<tr><th colspan="2" style="color:#ef4444">EXPENSES</th></tr>';
+    Object.entries(expByCat).forEach(([k,v])=>html+=`<tr><td>${esc(k)}</td><td class="num neg">${money(v)}</td></tr>`);
+    if(fuelTot) html+=`<tr><td>Fuel</td><td class="num neg">${money(fuelTot)}</td></tr>`;
+    if(payTot) html+=`<tr><td>Salaries / Payroll</td><td class="num neg">${money(payTot)}</td></tr>`;
+    html+=`<tr><td><b>Total Expenses</b></td><td class="num neg"><b>${money(totExp)}</b></td></tr>`;
+    html+=`<tr style="background:var(--secondary)"><td><b>NET PROFIT / (LOSS)</b></td><td class="num ${(totInc-totExp)>=0?'pos':'neg'}"><b>${money(totInc-totExp)}</b></td></tr>`;
+    html+='</tbody></table></div>';
+    return html;
+  }
+  function cashFlowReport(){
+    const t = totals();
+    return `<table class="erp-table"><tbody>
+      <tr><td>Opening Cash</td><td class="num">${money(0)}</td></tr>
+      <tr><td>Cash In (Income)</td><td class="num pos">${money(t.inc)}</td></tr>
+      <tr><td>Cash Out (Expenses)</td><td class="num neg">${money(t.totalExp)}</td></tr>
+      <tr style="background:var(--secondary)"><td><b>Net Cash Position</b></td><td class="num ${t.net>=0?'pos':'neg'}"><b>${money(t.net)}</b></td></tr>
+      <tr><td>Receivables</td><td class="num">${money(t.outR)}</td></tr>
+      <tr><td>Payables</td><td class="num">${money(t.payables)}</td></tr>
+      <tr><td>Inventory Value</td><td class="num">${money(t.invVal)}</td></tr>
+    </tbody></table>`;
+  }
+  function inventoryReport(){
+    const rows = lj(K.inv).map(x=>({...x, value:(+x.qty||0)*(+x.rate||0)}));
+    return table([
+      {label:'Item',key:'name'},{label:'Category',key:'category'},
+      {label:'Qty',cls:'num',key:'qty'},{label:'Rate',cls:'num',get:r=>money(r.rate)},
+      {label:'Value',cls:'num',get:r=>money(r.value)},{label:'Status',get:r=>(+r.qty||0)<=(+r.minQty||0)?'<span class="erp-chip bad">LOW</span>':'<span class="erp-chip ok">OK</span>',html:true}
+    ], rows, {id:'inv-rep'});
+  }
+  window.erpPeriodReport = ()=>{
+    const period = document.getElementById('rep-period').value;
+    const date = document.getElementById('rep-date').value || today();
+    const d = new Date(date);
+    let from, to;
+    if(period==='day'){ from=to=date; }
+    else if(period==='week'){
+      const day = d.getDay(); const s=new Date(d); s.setDate(d.getDate()-day); const e=new Date(s); e.setDate(s.getDate()+6);
+      from=s.toISOString().slice(0,10); to=e.toISOString().slice(0,10);
+    } else if(period==='month'){
+      from = new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
+      to = new Date(d.getFullYear(),d.getMonth()+1,0).toISOString().slice(0,10);
+    } else {
+      from = d.getFullYear()+'-01-01'; to = d.getFullYear()+'-12-31';
+    }
+    const between=(x)=>x.date && x.date>=from && x.date<=to;
+    const inc = lj(K.inc).filter(between).reduce((s,x)=>s+(+x.amount||0),0);
+    const exp = lj(K.exp).filter(between).reduce((s,x)=>s+(+x.amount||0),0)
+              + lj(K.fuel).filter(between).reduce((s,x)=>s+(+x.amount||0),0)
+              + lj(K.pay).filter(between).reduce((s,x)=>s+(+x.amount||0),0);
+    document.getElementById('rep-out').innerHTML = `<div style="padding:10px;background:var(--secondary);border-radius:8px">
+      <div><b>Period:</b> ${from} → ${to}</div>
+      <div>Income: <span class="pos">${money(inc)}</span></div>
+      <div>Expenses: <span class="neg">${money(exp)}</span></div>
+      <div><b>Net:</b> <span class="${inc-exp>=0?'pos':'neg'}">${money(inc-exp)}</span></div>
+    </div>`;
+  };
+
+  // ---- ANALYTICS ----
+  tabs.analytics = (el)=>{
+    const t = totals();
+    const pf = projectFinance();
+    const topProfit = pf.slice().sort((a,b)=>b.netProfit-a.netProfit).slice(0,5);
+    const worstProfit = pf.slice().sort((a,b)=>a.netProfit-b.netProfit).slice(0,5);
+    const inv = lj(K.inv);
+    const lowStock = inv.filter(x=>(+x.qty||0)<=(+x.minQty||0));
+    const expBreak = {};
+    [...lj(K.exp).map(x=>({cat:x.category,amt:+x.amount||0})), ...lj(K.fuel).map(x=>({cat:'Fuel',amt:+x.amount||0})), ...lj(K.pay).map(x=>({cat:'Salaries',amt:+x.amount||0}))]
+      .forEach(x=>{expBreak[x.cat||'Other']=(expBreak[x.cat||'Other']||0)+x.amt});
+    const totExp = Object.values(expBreak).reduce((s,x)=>s+x,0)||1;
+    el.innerHTML = kpi([
+      {lbl:'Total Income',val:money(t.inc),cls:'inc'},
+      {lbl:'Total Expenses',val:money(t.totalExp),cls:'exp'},
+      {lbl:'Gross Profit',val:money(t.gross),cls:'bal'},
+      {lbl:'Net Profit',val:money(t.net),cls:'bal'},
+      {lbl:'Cash Position',val:money(t.net)},
+      {lbl:'Receivables',val:money(t.outR),cls:'exp'},
+      {lbl:'Payables',val:money(t.payables),cls:'exp'}
+    ]) + `<div class="erp-grid-2">
+      <div class="erp-card"><div class="erp-section-title">📈 Income vs Expense Trend</div>${monthBarChart()}</div>
+      <div class="erp-card"><div class="erp-section-title">🥇 Most Profitable Projects</div>
+        ${topProfit.length? topProfit.map(p=>`<div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:12px"><span>${esc(projectName(p))}</span><span class="pos">${money(p.netProfit)}</span></div><div class="erp-bar"><div style="width:${Math.min(100,Math.abs(p.netProfit)/Math.max(1,topProfit[0].netProfit)*100)}%"></div></div></div>`).join('') : '<div class="erp-mini">No data</div>'}
+      </div>
+      <div class="erp-card"><div class="erp-section-title">📉 Least Profitable Projects</div>
+        ${worstProfit.length? worstProfit.map(p=>`<div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:12px"><span>${esc(projectName(p))}</span><span class="neg">${money(p.netProfit)}</span></div></div>`).join('') : '<div class="erp-mini">No data</div>'}
+      </div>
+      <div class="erp-card"><div class="erp-section-title">📦 Inventory Insights</div>
+        <div>Total Value: <b>${money(t.invVal)}</b></div>
+        <div>Low Stock Items: <b class="neg">${lowStock.length}</b></div>
+        ${lowStock.length? '<ul class="erp-mini">'+lowStock.map(x=>`<li>${esc(x.name)} (${x.qty} ${x.unit||''})</li>`).join('')+'</ul>' : ''}
+      </div>
+      <div class="erp-card"><div class="erp-section-title">💸 Expense Breakdown</div>
+        ${Object.entries(expBreak).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([k,v])=>`
+          <div style="margin-bottom:6px">
+            <div style="display:flex;justify-content:space-between;font-size:12px"><span>${esc(k)}</span><span>${money(v)} (${(v/totExp*100).toFixed(1)}%)</span></div>
+            <div class="erp-bar"><div style="width:${v/totExp*100}%"></div></div>
+          </div>`).join('') || '<div class="erp-mini">No expenses</div>'}
+      </div>
+      <div class="erp-card"><div class="erp-section-title">🚗 Vehicle Fuel Consumption</div>
+        ${(()=>{ const veh=lj(K.veh); const fuel=lj(K.fuel);
+          const stats=veh.map(v=>({name:v.regNo,amt:fuel.filter(f=>f.vehicle===v.regNo).reduce((s,f)=>s+(+f.amount||0),0)}));
+          const mx=Math.max(1,...stats.map(s=>s.amt));
+          return stats.length? stats.map(s=>`<div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:12px"><span>${esc(s.name)}</span><span>${money(s.amt)}</span></div><div class="erp-bar"><div style="width:${s.amt/mx*100}%"></div></div></div>`).join('') : '<div class="erp-mini">No vehicles</div>';
+        })()}
+      </div>
+    </div>`;
+  };
+
+  // ===================== MODAL FORMS =====================
+  let modalCtx = null; // {kind, id, presets}
+
+  const FORMS = {
+    income: {
+      title:(id)=>id?'Edit Income':'Add Income',
+      key:K.inc,
+      fields:(d,presets)=>`
+        <label class="field"><span>Date</span><input type="date" id="f-date" value="${d.date||today()}"/></label>
+        <label class="field"><span>Category</span>
+          <select id="f-category">
+            ${['Customer Payment','Advance / Booking','Installment','Inspection Fee','Maintenance Charge','Other Income'].map(c=>`<option ${c===(d.category||presets.category)?'selected':''}>${c}</option>`).join('')}
+          </select></label>
+        <label class="field"><span>Customer / Party</span><input id="f-party" value="${esc(d.party||'')}"/></label>
+        <label class="field"><span>Project</span><select id="f-project">${projectOptions(d.project)}</select></label>
+        <label class="field"><span>Amount (Rs)</span><input id="f-amount" type="number" value="${d.amount||''}"/></label>
+        <label class="field"><span>Method</span><select id="f-method">${['Cash','Bank Transfer','Cheque','JazzCash / Easypaisa','Card','Other'].map(m=>`<option ${m===(d.method||'Cash')?'selected':''}>${m}</option>`).join('')}</select></label>
+        <label class="field"><span>Reference</span><input id="f-ref" value="${esc(d.ref||'')}"/></label>
+        <label class="field"><span>Notes</span><textarea id="f-notes">${esc(d.notes||'')}</textarea></label>`,
+      collect:()=>({date:v('f-date'),category:v('f-category'),party:v('f-party'),project:v('f-project'),amount:+v('f-amount')||0,method:v('f-method'),ref:v('f-ref'),notes:v('f-notes')})
+    },
+    expense: {
+      title:(id)=>id?'Edit Expense':'Add Expense',
+      key:K.exp,
+      fields:(d,presets)=>`
+        <label class="field"><span>Date</span><input type="date" id="f-date" value="${d.date||today()}"/></label>
+        <label class="field"><span>Category</span>
+          <select id="f-category">
+            ${['Solar Panels','Inverter','Battery','Structure / Fabrication','Cables & Wiring','Civil Work','Labour / Wages','Salaries','Transport / Fuel','Tools & Equipment','Office Rent','Office Expense','Utilities','Marketing','Supplier Payment','Bank Charges','Tax','Site Expense','Miscellaneous'].map(c=>`<option ${c===(d.category||presets.category)?'selected':''}>${c}</option>`).join('')}
+          </select></label>
+        <label class="field"><span>Payee</span><input id="f-party" value="${esc(d.party||'')}"/></label>
+        <label class="field"><span>Project</span><select id="f-project">${projectOptions(d.project)}</select></label>
+        <label class="field"><span>Amount (Rs)</span><input id="f-amount" type="number" value="${d.amount||''}"/></label>
+        <label class="field"><span>Method</span><select id="f-method">${['Cash','Bank Transfer','Cheque','JazzCash / Easypaisa','Card','Other'].map(m=>`<option ${m===(d.method||'Cash')?'selected':''}>${m}</option>`).join('')}</select></label>
+        <label class="field"><span>Reference</span><input id="f-ref" value="${esc(d.ref||'')}"/></label>
+        <label class="field"><span><input type="checkbox" id="f-unpaid" ${d.unpaid?'checked':''}/> Mark as Unpaid (payable)</span></label>
+        <label class="field"><span>Notes</span><textarea id="f-notes">${esc(d.notes||'')}</textarea></label>`,
+      collect:()=>({date:v('f-date'),category:v('f-category'),party:v('f-party'),project:v('f-project'),amount:+v('f-amount')||0,method:v('f-method'),ref:v('f-ref'),unpaid:document.getElementById('f-unpaid').checked,notes:v('f-notes')})
+    },
+    customer: {
+      title:(id)=>id?'Edit Customer / Lead':'Add Customer / Lead', key:K.cust,
+      fields:(d)=>`
+        <label class="field"><span>Name</span><input id="f-name" value="${esc(d.name||'')}"/></label>
+        <label class="field"><span>Contact</span><input id="f-contact" value="${esc(d.contact||'')}"/></label>
+        <label class="field"><span>Location</span><input id="f-location" value="${esc(d.location||'')}"/></label>
+        <label class="field"><span>Source</span><select id="f-source">${['Lead','Inquiry','Quotation','Contract','Customer'].map(s=>`<option ${s===(d.source||'Lead')?'selected':''}>${s}</option>`).join('')}</select></label>
+        <label class="field"><span>Status</span><input id="f-status" value="${esc(d.status||'New')}"/></label>
+        <label class="field"><span>Notes</span><textarea id="f-notes">${esc(d.notes||'')}</textarea></label>`,
+      collect:()=>({name:v('f-name'),contact:v('f-contact'),location:v('f-location'),source:v('f-source'),status:v('f-status'),notes:v('f-notes')})
+    },
+    supplier: {
+      title:(id)=>id?'Edit Supplier':'Add Supplier', key:K.sup,
+      fields:(d)=>`
+        <label class="field"><span>Name</span><input id="f-name" value="${esc(d.name||'')}"/></label>
+        <label class="field"><span>Contact</span><input id="f-contact" value="${esc(d.contact||'')}"/></label>
+        <label class="field"><span>Category</span><input id="f-category" value="${esc(d.category||'')}" placeholder="Panels, Inverters, Cables..."/></label>
+        <label class="field"><span>Address</span><input id="f-address" value="${esc(d.address||'')}"/></label>
+        <label class="field"><span>Notes</span><textarea id="f-notes">${esc(d.notes||'')}</textarea></label>`,
+      collect:()=>({name:v('f-name'),contact:v('f-contact'),category:v('f-category'),address:v('f-address'),notes:v('f-notes')})
+    },
+    employee: {
+      title:(id)=>id?'Edit Employee':'Add Employee', key:K.emp,
+      fields:(d)=>`
+        <label class="field"><span>Name</span><input id="f-name" value="${esc(d.name||'')}"/></label>
+        <label class="field"><span>Role</span><input id="f-role" value="${esc(d.role||'')}" placeholder="Technician, Manager…"/></label>
+        <label class="field"><span>Contact</span><input id="f-contact" value="${esc(d.contact||'')}"/></label>
+        <label class="field"><span>CNIC</span><input id="f-cnic" value="${esc(d.cnic||'')}"/></label>
+        <label class="field"><span>Monthly Salary (Rs)</span><input id="f-salary" type="number" value="${d.salary||''}"/></label>
+        <label class="field"><span>Joined</span><input id="f-joined" type="date" value="${d.joined||''}"/></label>
+        <label class="field"><span>Address</span><input id="f-address" value="${esc(d.address||'')}"/></label>`,
+      collect:()=>({name:v('f-name'),role:v('f-role'),contact:v('f-contact'),cnic:v('f-cnic'),salary:+v('f-salary')||0,joined:v('f-joined'),address:v('f-address')})
+    },
+    payroll: {
+      title:(id)=>id?'Edit Payroll':'Pay Salary / Advance', key:K.pay,
+      fields:(d)=>{
+        const emps = lj(K.emp);
+        return `
+        <label class="field"><span>Date</span><input type="date" id="f-date" value="${d.date||today()}"/></label>
+        <label class="field"><span>Employee</span><select id="f-employee">${emps.map(e=>`<option ${e.name===d.employee?'selected':''}>${esc(e.name)}</option>`).join('')||'<option>—</option>'}</select></label>
+        <label class="field"><span>Type</span><select id="f-kind">${['Salary','Advance','Bonus','Deduction','Overtime'].map(k=>`<option ${k===(d.kind||'Salary')?'selected':''}>${k}</option>`).join('')}</select></label>
+        <label class="field"><span>Amount (Rs)</span><input id="f-amount" type="number" value="${d.amount||''}"/></label>
+        <label class="field"><span>Method</span><select id="f-method">${['Cash','Bank Transfer','Cheque','JazzCash / Easypaisa'].map(m=>`<option ${m===(d.method||'Cash')?'selected':''}>${m}</option>`).join('')}</select></label>
+        <label class="field"><span>Notes</span><textarea id="f-notes">${esc(d.notes||'')}</textarea></label>`;
+      },
+      collect:()=>({date:v('f-date'),employee:v('f-employee'),kind:v('f-kind'),amount:+v('f-amount')||0,method:v('f-method'),notes:v('f-notes')})
+    },
+    installer: {
+      title:(id)=>id?'Edit Installer':'Add Installer', key:K.inst,
+      fields:(d)=>`
+        <label class="field"><span>Name / Team Lead</span><input id="f-name" value="${esc(d.name||'')}"/></label>
+        <label class="field"><span>Team Size</span><input id="f-teamSize" type="number" value="${d.teamSize||''}"/></label>
+        <label class="field"><span>Contact</span><input id="f-contact" value="${esc(d.contact||'')}"/></label>
+        <label class="field"><span>Rate / Day or Project (Rs)</span><input id="f-rate" type="number" value="${d.rate||''}"/></label>
+        <label class="field"><span>Notes</span><textarea id="f-notes">${esc(d.notes||'')}</textarea></label>`,
+      collect:()=>({name:v('f-name'),teamSize:+v('f-teamSize')||0,contact:v('f-contact'),rate:+v('f-rate')||0,notes:v('f-notes')})
+    },
+    fabricator: {
+      title:(id)=>id?'Edit Fabricator':'Add Fabricator', key:K.fab,
+      fields:(d)=>`
+        <label class="field"><span>Name</span><input id="f-name" value="${esc(d.name||'')}"/></label>
+        <label class="field"><span>Workshop</span><input id="f-teamSize" value="${esc(d.teamSize||'')}"/></label>
+        <label class="field"><span>Contact</span><input id="f-contact" value="${esc(d.contact||'')}"/></label>
+        <label class="field"><span>Rate per kW (Rs)</span><input id="f-rate" type="number" value="${d.rate||''}"/></label>
+        <label class="field"><span>Notes</span><textarea id="f-notes">${esc(d.notes||'')}</textarea></label>`,
+      collect:()=>({name:v('f-name'),teamSize:v('f-teamSize'),contact:v('f-contact'),rate:+v('f-rate')||0,notes:v('f-notes')})
+    },
+    inventory: {
+      title:(id)=>id?'Edit Item':'Add Inventory Item', key:K.inv,
+      fields:(d)=>`
+        <label class="field"><span>Item Name</span><input id="f-name" value="${esc(d.name||'')}"/></label>
+        <label class="field"><span>Category</span><select id="f-category">${['Solar Panels','Inverters','Batteries','DC Cables','AC Cables','Structures','Breakers','Accessories','Other'].map(c=>`<option ${c===(d.category||'')?'selected':''}>${c}</option>`).join('')}</select></label>
+        <label class="field"><span>Quantity</span><input id="f-qty" type="number" value="${d.qty||0}"/></label>
+        <label class="field"><span>Unit</span><input id="f-unit" value="${esc(d.unit||'pcs')}"/></label>
+        <label class="field"><span>Rate per unit (Rs)</span><input id="f-rate" type="number" value="${d.rate||0}"/></label>
+        <label class="field"><span>Minimum Stock</span><input id="f-minQty" type="number" value="${d.minQty||0}"/></label>
+        <label class="field"><span>Supplier</span><input id="f-supplier" value="${esc(d.supplier||'')}"/></label>`,
+      collect:()=>({name:v('f-name'),category:v('f-category'),qty:+v('f-qty')||0,unit:v('f-unit'),rate:+v('f-rate')||0,minQty:+v('f-minQty')||0,supplier:v('f-supplier')})
+    },
+    invtx: {
+      title:(id)=>id?'Edit Transaction':'Stock Transaction', key:K.invTx,
+      fields:(d,presets)=>{
+        const items = lj(K.inv);
+        return `
+        <label class="field"><span>Date</span><input type="date" id="f-date" value="${d.date||today()}"/></label>
+        <label class="field"><span>Type</span><select id="f-type">${['purchase','adjust'].map(t=>`<option value="${t}" ${t===(d.type||presets.type||'purchase')?'selected':''}>${t==='purchase'?'Purchase (add stock)':'Adjustment'}</option>`).join('')}</select></label>
+        <label class="field"><span>Item</span><select id="f-item">${items.map(i=>`<option ${i.name===d.item?'selected':''}>${esc(i.name)}</option>`).join('')||'<option>— add items first —</option>'}</select></label>
+        <label class="field"><span>Quantity</span><input id="f-qty" type="number" value="${d.qty||''}"/></label>
+        <label class="field"><span>Rate</span><input id="f-rate" type="number" value="${d.rate||''}"/></label>
+        <label class="field"><span>Supplier</span><input id="f-supplier" value="${esc(d.supplier||'')}"/></label>
+        <label class="field"><span>Notes</span><textarea id="f-notes">${esc(d.notes||'')}</textarea></label>`;
+      },
+      collect:()=>({date:v('f-date'),type:v('f-type'),item:v('f-item'),qty:+v('f-qty')||0,rate:+v('f-rate')||0,supplier:v('f-supplier'),notes:v('f-notes')}),
+      afterSave:(rec)=>{
+        // Auto-update inventory qty + create expense if purchase
+        const inv = lj(K.inv);
+        const i = inv.findIndex(x=>x.name===rec.item);
+        if(i>=0){
+          if(rec.type==='purchase'){ inv[i].qty = (+inv[i].qty||0) + rec.qty; inv[i].rate = rec.rate||inv[i].rate; }
+          else { inv[i].qty = rec.qty; }
+          sj(K.inv, inv);
+        }
+        if(rec.type==='purchase'){
+          const exp = lj(K.exp);
+          exp.push({id:uid(),date:rec.date,category:'Material Purchase',party:rec.supplier,project:'',amount:rec.qty*rec.rate,method:'Cash',ref:'INV-'+rec.id,notes:'Auto: '+rec.item+' x'+rec.qty,unpaid:false,at:new Date().toISOString()});
+          sj(K.exp, exp);
+        }
+      }
+    },
+    material: {
+      title:(id)=>id?'Edit Material':'Material Movement', key:K.mat,
+      fields:(d,presets)=>{
+        const items = lj(K.inv);
+        return `
+        <label class="field"><span>Date</span><input type="date" id="f-date" value="${d.date||today()}"/></label>
+        <label class="field"><span>Type</span><select id="f-type"><option value="issue" ${(d.type||presets.type)==='issue'?'selected':''}>Issue to Site</option><option value="return" ${(d.type||presets.type)==='return'?'selected':''}>Return from Site</option></select></label>
+        <label class="field"><span>Project</span><select id="f-project">${projectOptions(d.project)}</select></label>
+        <label class="field"><span>Item</span><select id="f-item">${items.map(i=>`<option ${i.name===d.item?'selected':''}>${esc(i.name)}</option>`).join('')||'<option>— add inventory first —</option>'}</select></label>
+        <label class="field"><span>Quantity</span><input id="f-qty" type="number" value="${d.qty||''}"/></label>
+        <label class="field"><span>Unit</span><input id="f-unit" value="${esc(d.unit||'pcs')}"/></label>
+        <label class="field"><span>Value (Rs)</span><input id="f-value" type="number" value="${d.value||''}" placeholder="auto from inventory rate"/></label>
+        <label class="field"><span>Issued By</span><input id="f-by" value="${esc(d.by||'')}"/></label>
+        <label class="field"><span>Notes</span><textarea id="f-notes">${esc(d.notes||'')}</textarea></label>`;
+      },
+      collect:()=>{
+        const item=v('f-item'); const qty=+v('f-qty')||0;
+        let value=+v('f-value')||0;
+        if(!value){ const inv=lj(K.inv).find(i=>i.name===item); if(inv) value = qty*(+inv.rate||0); }
+        return {date:v('f-date'),type:v('f-type'),project:v('f-project'),item,qty,unit:v('f-unit'),value,by:v('f-by'),notes:v('f-notes')};
+      },
+      afterSave:(rec)=>{
+        const inv = lj(K.inv); const i = inv.findIndex(x=>x.name===rec.item);
+        if(i>=0){
+          if(rec.type==='issue') inv[i].qty = (+inv[i].qty||0) - rec.qty;
+          else inv[i].qty = (+inv[i].qty||0) + rec.qty;
+          sj(K.inv, inv);
+        }
+      }
+    },
+    vehicle: {
+      title:(id)=>id?'Edit Vehicle':'Add Vehicle / Bike', key:K.veh,
+      fields:(d)=>`
+        <label class="field"><span>Type</span><select id="f-kind"><option ${d.kind==='Car'?'selected':''}>Car</option><option ${d.kind==='Bike'?'selected':''}>Bike</option><option ${d.kind==='Truck'?'selected':''}>Truck</option><option ${d.kind==='Van'?'selected':''}>Van</option></select></label>
+        <label class="field"><span>Registration No</span><input id="f-regNo" value="${esc(d.regNo||'')}"/></label>
+        <label class="field"><span>Make / Model</span><input id="f-model" value="${esc(d.model||'')}"/></label>
+        <label class="field"><span>Assigned To</span><input id="f-assignedTo" value="${esc(d.assignedTo||'')}"/></label>
+        <label class="field"><span>Registration Details</span><textarea id="f-details">${esc(d.details||'')}</textarea></label>`,
+      collect:()=>({kind:v('f-kind'),regNo:v('f-regNo'),model:v('f-model'),assignedTo:v('f-assignedTo'),details:v('f-details')})
+    },
+    fuel: {
+      title:(id)=>id?'Edit Fuel Entry':'Fuel / Maintenance Entry', key:K.fuel,
+      fields:(d)=>{
+        const veh = lj(K.veh);
+        return `
+        <label class="field"><span>Date</span><input type="date" id="f-date" value="${d.date||today()}"/></label>
+        <label class="field"><span>Vehicle</span><select id="f-vehicle">${veh.map(x=>`<option ${x.regNo===d.vehicle?'selected':''}>${esc(x.regNo)}</option>`).join('')||'<option>— add vehicle first —</option>'}</select></label>
+        <label class="field"><span>Type</span><select id="f-kind">${['Fuel','Maintenance','Repair','Service','Insurance'].map(k=>`<option ${k===(d.kind||'Fuel')?'selected':''}>${k}</option>`).join('')}</select></label>
+        <label class="field"><span>Litres (if fuel)</span><input id="f-litres" type="number" step="0.1" value="${d.litres||''}"/></label>
+        <label class="field"><span>Odometer</span><input id="f-odo" type="number" value="${d.odo||''}"/></label>
+        <label class="field"><span>Project (optional)</span><select id="f-project">${projectOptions(d.project)}</select></label>
+        <label class="field"><span>Amount (Rs)</span><input id="f-amount" type="number" value="${d.amount||''}"/></label>
+        <label class="field"><span>Notes</span><textarea id="f-notes">${esc(d.notes||'')}</textarea></label>`;
+      },
+      collect:()=>({date:v('f-date'),vehicle:v('f-vehicle'),kind:v('f-kind'),litres:+v('f-litres')||0,odo:+v('f-odo')||0,project:v('f-project'),amount:+v('f-amount')||0,notes:v('f-notes')})
+    }
+  };
+  function v(id){ const el=document.getElementById(id); return el?el.value:''; }
+
+  window.erpOpen = (kind, idOrPresets)=>{
+    const form = FORMS[kind]; if(!form){ alert('Unknown form: '+kind); return; }
+    let id=null, presets={};
+    if(typeof idOrPresets==='string') id=idOrPresets;
+    else if(idOrPresets && typeof idOrPresets==='object') presets=idOrPresets;
+    const data = id ? (lj(form.key).find(x=>x.id===id)||{}) : {};
+    modalCtx = {kind, id, presets};
+    document.getElementById('erp-mtitle').textContent = form.title(id);
+    document.getElementById('erp-msub').textContent = '';
+    document.getElementById('erp-mbody').innerHTML = form.fields(data, presets);
+    document.getElementById('erp-del-btn').style.display = id ? 'inline-flex' : 'none';
+    document.getElementById('m-erp').classList.add('open');
+  };
+  window.erpCloseModal = ()=>{ document.getElementById('m-erp').classList.remove('open'); modalCtx=null; };
+  window.erpSaveCurrent = ()=>{
+    if(!modalCtx) return;
+    const form = FORMS[modalCtx.kind];
+    const data = form.collect();
+    const arr = lj(form.key);
+    let saved;
+    if(modalCtx.id){
+      const i=arr.findIndex(x=>x.id===modalCtx.id);
+      if(i>=0){ arr[i]={...arr[i],...data,id:modalCtx.id}; saved=arr[i]; }
+    } else {
+      saved = {id:uid(), ...data, at:new Date().toISOString()};
+      arr.push(saved);
+    }
+    sj(form.key, arr);
+    if(form.afterSave) form.afterSave(saved);
+    erpCloseModal();
+    setTab(activeTab);
+  };
+  window.erpDeleteCurrent = ()=>{
+    if(!modalCtx||!modalCtx.id) return;
+    if(!confirm('Delete this record?')) return;
+    const form = FORMS[modalCtx.kind];
+    sj(form.key, lj(form.key).filter(x=>x.id!==modalCtx.id));
+    erpCloseModal(); setTab(activeTab);
+  };
+
+  // Project finance editor
+  window.erpEditProject = (key)=>{
+    const p = projectMeta().find(p=>p.key===key); if(!p) return;
+    modalCtx = {kind:'_project', id:key};
+    document.getElementById('erp-mtitle').textContent = 'Edit Project Finance';
+    document.getElementById('erp-msub').textContent = projectName(p);
+    document.getElementById('erp-mbody').innerHTML = `
+      <label class="field"><span>Capacity (kW)</span><input id="f-capacity" value="${esc(p.capacity||'')}"/></label>
+      <label class="field"><span>Project Value (Rs)</span><input id="f-value" type="number" value="${p.value||0}"/></label>
+      <label class="field"><span>Status</span><select id="f-status">${['Active','Completed','On Hold','Cancelled'].map(s=>`<option ${s===p.status?'selected':''}>${s}</option>`).join('')}</select></label>
+      <label class="field"><span>Install Status</span><select id="f-installStatus">${['Pending','In Progress','Installed','Commissioned'].map(s=>`<option ${s===p.installStatus?'selected':''}>${s}</option>`).join('')}</select></label>
+      <label class="field"><span>Team Assignment</span><input id="f-team" value="${esc(p.team||'')}"/></label>
+      <label class="field"><span>Customer Contact</span><input id="f-contact" value="${esc(p.contact||'')}"/></label>
+      <p class="erp-mini">Note: Client, location & SR are managed in Project Details. Edit there to update everywhere.</p>`;
+    document.getElementById('erp-del-btn').style.display='none';
+    document.getElementById('m-erp').classList.add('open');
+    // Override save handler temporarily
+    window.erpSaveCurrent = ()=>{
+      saveProjectMeta(key, {
+        capacity:v('f-capacity'), value:+v('f-value')||0, status:v('f-status'),
+        installStatus:v('f-installStatus'), team:v('f-team'), contact:v('f-contact'),
+        createdAt: p.createdAt || today()
+      });
+      erpCloseModal();
+      // restore standard save
+      window.erpSaveCurrent = standardSave;
+      setTab(activeTab);
+    };
+  };
+  const standardSave = window.erpSaveCurrent;
+
+  // Filter helper for tables
+  window.erpFilter = (tblId, q)=>{
+    q=(q||'').toLowerCase();
+    const t = document.getElementById(tblId); if(!t) return;
+    t.querySelectorAll('tbody tr').forEach(tr=>{
+      tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  };
+
+  // Export: csv, html, print
+  window.erpExport = (tblId, fmt, title)=>{
+    const t = document.getElementById(tblId); if(!t){ alert('Nothing to export'); return; }
+    const safeTitle = (title||'export').replace(/[^a-z0-9 _-]/gi,'_');
+    if(fmt==='csv'){
+      const rows = [...t.querySelectorAll('tr')].map(tr=>[...tr.querySelectorAll('th,td')].map(td=>{
+        const txt = td.innerText.replace(/"/g,'""').replace(/\s+/g,' ').trim();
+        return `"${txt}"`;
+      }).join(','));
+      const blob = new Blob(['\uFEFF'+rows.join('\n')], {type:'text/csv'});
+      downloadBlob(blob, safeTitle+'.csv');
+    } else if(fmt==='html'){
+      const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title>
+        <style>body{font-family:system-ui;padding:20px}table{width:100%;border-collapse:collapse}
+        th,td{border:1px solid #999;padding:6px 10px;text-align:left}th{background:#f2c14e}
+        h1{font-family:system-ui}</style></head><body>
+        <h1>Scope Solar — ${esc(title)}</h1><p>Generated: ${new Date().toLocaleString()}</p>
+        ${t.outerHTML}</body></html>`;
+      downloadBlob(new Blob([html],{type:'text/html'}), safeTitle+'.html');
+    } else if(fmt==='print'){
+      const w = window.open('', '_blank');
+      w.document.write(`<!doctype html><html><head><title>${esc(title)}</title>
+        <style>body{font-family:system-ui;padding:20px;color:#000}table{width:100%;border-collapse:collapse;font-size:12px}
+        th,td{border:1px solid #888;padding:5px 8px;text-align:left}th{background:#fbbf24}h1{margin:0 0 6px}</style></head>
+        <body><h1>Scope Solar — ${esc(title)}</h1><div style="color:#666;margin-bottom:10px">Generated: ${new Date().toLocaleString()}</div>
+        ${t.outerHTML}<script>window.onload=()=>window.print()<\/script></body></html>`);
+      w.document.close();
+    }
+  };
+  function downloadBlob(blob, name){
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click();
+    setTimeout(()=>{a.remove(); URL.revokeObjectURL(url)},100);
+  }
+
+  // ---- Wire up tab clicks ----
+  function init(){
+    document.getElementById('erp-tabs')?.addEventListener('click', (e)=>{
+      const b = e.target.closest('.erp-tab'); if(!b) return;
+      setTab(b.dataset.tab);
+    });
+  }
+  // Hook into existing nav: re-render when accounts view opens
+  const origRender = window.renderAccounts;
+  window.renderAccounts = function(){
+    if(!document.getElementById('erp-tabs')) return;
+    init();
+    setTab(activeTab);
+  };
+  // Initial paint if already on accounts
+  if(document.getElementById('view-accounts')?.classList.contains('active')) {
+    setTimeout(()=>window.renderAccounts(),50);
+  }
 })();
 </script>
 
