@@ -3742,4 +3742,110 @@ refreshNotifDot();
 })();
 </script>
 
+<script>
+/* ============ TRACKER_14: Project sync to ERP + User Management instant updates ============ */
+(function(){
+  const PKEY='solar-projects-v1', UKEY='solar-users-v1';
+
+  // ---- Broadcast helper: notify every module that projects/users changed ----
+  function broadcast(kind){
+    try{ window.dispatchEvent(new CustomEvent('solar:data-changed',{detail:{kind}})); }catch(_){}
+  }
+
+  // ---- Wrap saveProjects so any save anywhere triggers a system-wide refresh ----
+  const _saveProjects = window.saveProjects;
+  window.saveProjects = function(a){
+    if(typeof _saveProjects==='function') _saveProjects(a);
+    else localStorage.setItem(PKEY, JSON.stringify(a||[]));
+    broadcast('projects');
+  };
+
+  // ---- Wrap doAddProject and deleteProject to fan-out refresh ----
+  const _doAddProject = window.doAddProject;
+  window.doAddProject = function(){
+    const r = _doAddProject ? _doAddProject.apply(this, arguments) : undefined;
+    setTimeout(()=>broadcast('projects'), 30);
+    return r;
+  };
+  const _deleteProject = window.deleteProject;
+  if(typeof _deleteProject==='function'){
+    window.deleteProject = function(){
+      const r = _deleteProject.apply(this, arguments);
+      setTimeout(()=>broadcast('projects'), 30);
+      return r;
+    };
+  }
+
+  // ---- Wrap addUser & rmUser to broadcast users-changed ----
+  const _addUser = window.addUser;
+  window.addUser = function(){
+    // Disable button briefly to prevent double-submit
+    const btn = document.getElementById('nu-submit-btn');
+    if(btn){ if(btn.dataset.busy==='1') return; btn.dataset.busy='1'; btn.disabled=true; }
+    try{
+      const r = _addUser ? _addUser.apply(this, arguments) : undefined;
+      setTimeout(()=>broadcast('users'), 30);
+      return r;
+    } finally {
+      setTimeout(()=>{ if(btn){ btn.dataset.busy='0'; btn.disabled=false; } }, 150);
+    }
+  };
+  const _rmUser = window.rmUser;
+  window.rmUser = function(){
+    const r = _rmUser ? _rmUser.apply(this, arguments) : undefined;
+    setTimeout(()=>broadcast('users'), 30);
+    return r;
+  };
+
+  // ---- Central refresh: rerun every renderer that depends on projects/users ----
+  let _refreshScheduled = false;
+  function refreshAll(){
+    if(_refreshScheduled) return;
+    _refreshScheduled = true;
+    requestAnimationFrame(()=>{
+      _refreshScheduled = false;
+      try{ if(typeof renderProjects==='function') renderProjects(); }catch(_){}
+      try{ if(typeof renderHome==='function') renderHome(); }catch(_){}
+      try{ if(typeof renderAccounts==='function') renderAccounts(); }catch(_){}
+      try{ if(typeof renderTeam==='function') renderTeam(); }catch(_){}
+      try{ if(typeof renderPlans==='function') renderPlans(); }catch(_){}
+      try{ if(typeof renderInspectPlans==='function') renderInspectPlans(); }catch(_){}
+      try{ if(typeof render==='function') render(); }catch(_){}
+      // ERP re-render (current tab) if mounted
+      try{
+        if(typeof window.erpSetTab==='function' && document.getElementById('erp-body')){
+          const active = document.querySelector('#erp-tabs .erp-tab.active');
+          window.erpSetTab(active ? active.dataset.tab : 'dashboard');
+        }
+      }catch(_){}
+      // Users list & home presence
+      try{ if(typeof renderUsers==='function') renderUsers(); }catch(_){}
+    });
+  }
+  window.__solarRefreshAll = refreshAll;
+
+  // ---- Listen for in-tab broadcasts ----
+  window.addEventListener('solar:data-changed', refreshAll);
+
+  // ---- Cross-tab/device: storage events from other tabs auto-refresh ----
+  window.addEventListener('storage', (e)=>{
+    if(!e.key) return;
+    if(e.key===PKEY || e.key===UKEY || (e.key||'').startsWith('erp-')) refreshAll();
+  });
+
+  // ---- Periodic safety refresh every 4s while document is visible ----
+  let _lastP = localStorage.getItem(PKEY) || '';
+  let _lastU = localStorage.getItem(UKEY) || '';
+  setInterval(()=>{
+    if(document.hidden) return;
+    const p = localStorage.getItem(PKEY) || '';
+    const u = localStorage.getItem(UKEY) || '';
+    if(p!==_lastP || u!==_lastU){ _lastP=p; _lastU=u; refreshAll(); }
+  }, 4000);
+
+  // ---- One-shot initial sync once everything is wired ----
+  if(document.readyState==='complete') setTimeout(refreshAll, 600);
+  else window.addEventListener('load', ()=>setTimeout(refreshAll, 600));
+})();
+</script>
 </body></html>
