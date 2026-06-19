@@ -3703,7 +3703,378 @@ refreshNotifDot();
         th,td{border:1px solid #999;padding:6px 10px;text-align:left}th{background:#f2c14e}
         h1{font-family:system-ui}</style></head><body>
         <h1>Scope Solar — ${esc(title)}</h1><p>Generated: ${new Date().toLocaleString()}</p>
+        ${t.outerHTML}<script>
+/* ============ TRACKER_15: Bank/Salary, Vehicle Movement, Export PDF/Excel only, Instant User Save ============ */
+(function(){
+  const K={emp:'erp-employees-v1',pay:'erp-payroll-v1',veh:'erp-vehicles-v1',move:'erp-vmove-v1'};
+  const PKEY='solar-projects-v1';
+  function lj(k){try{return JSON.parse(localStorage.getItem(k))||[];}catch(_){return [];}}
+  function sj(k,a){localStorage.setItem(k,JSON.stringify(a));}
+  function uid(){return 'id'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+  function today(){return new Date().toISOString().slice(0,10);}
+  function money(n){n=+n||0;return 'Rs '+n.toLocaleString('en-PK',{maximumFractionDigits:0});}
+  function v(id){const el=document.getElementById(id);return el?el.value:'';}
+  function projects(){try{return JSON.parse(localStorage.getItem(PKEY))||[];}catch(_){return [];}}
+  function projectNames(){return projects().map(p=>p.title||p.name||p.client||p.location||p.id).filter(Boolean);}
+
+  /* ===== 1) Override Employee form: add Bank fields ===== */
+  function patchEmployeeForm(){
+    if(!window.FORMS || !window.FORMS.employee) return setTimeout(patchEmployeeForm,300);
+    const old=window.FORMS.employee;
+    window.FORMS.employee={
+      title:old.title, key:old.key,
+      fields:(d)=>`
+        <label class="field"><span>Name</span><input id="f-name" value="${esc(d.name||'')}"/></label>
+        <label class="field"><span>Designation / Role</span><input id="f-role" value="${esc(d.role||'')}" placeholder="Technician, Manager…"/></label>
+        <label class="field"><span>Contact</span><input id="f-contact" value="${esc(d.contact||'')}"/></label>
+        <label class="field"><span>CNIC</span><input id="f-cnic" value="${esc(d.cnic||'')}"/></label>
+        <label class="field"><span>Monthly Salary (Rs)</span><input id="f-salary" type="number" value="${d.salary||''}"/></label>
+        <label class="field"><span>Joined</span><input id="f-joined" type="date" value="${d.joined||''}"/></label>
+        <label class="field"><span>Address</span><input id="f-address" value="${esc(d.address||'')}"/></label>
+        <div class="erp-section-title" style="grid-column:1/-1;margin-top:8px">🏦 Bank & Mobile Wallet Details</div>
+        <label class="field"><span>Bank Name</span><input id="f-bank" value="${esc(d.bank||'')}"/></label>
+        <label class="field"><span>Bank Account Number</span><input id="f-acct" value="${esc(d.acct||'')}"/></label>
+        <label class="field"><span>IBAN Number</span><input id="f-iban" value="${esc(d.iban||'')}"/></label>
+        <label class="field"><span>Easypaisa Number</span><input id="f-easy" value="${esc(d.easy||'')}"/></label>
+        <label class="field"><span>JazzCash Number</span><input id="f-jazz" value="${esc(d.jazz||'')}"/></label>`,
+      collect:()=>({
+        name:v('f-name'),role:v('f-role'),contact:v('f-contact'),cnic:v('f-cnic'),
+        salary:+v('f-salary')||0,joined:v('f-joined'),address:v('f-address'),
+        bank:v('f-bank'),acct:v('f-acct'),iban:v('f-iban'),easy:v('f-easy'),jazz:v('f-jazz')
+      })
+    };
+  }
+
+  /* ===== 2) Override Payroll form: full salary structure ===== */
+  function patchPayrollForm(){
+    if(!window.FORMS || !window.FORMS.payroll) return setTimeout(patchPayrollForm,300);
+    window.FORMS.payroll={
+      title:(id)=>id?'Edit Salary':'Pay Salary / Advance', key:K.pay,
+      fields:(d)=>{
+        const emps=lj(K.emp);
+        const monthDef=d.month||new Date().toISOString().slice(0,7);
+        return `
+        <label class="field"><span>Date</span><input type="date" id="f-date" value="${d.date||today()}"/></label>
+        <label class="field"><span>Salary Month</span><input type="month" id="f-month" value="${monthDef}"/></label>
+        <label class="field"><span>Employee</span><select id="f-employee">${emps.map(e=>`<option ${e.name===d.employee?'selected':''}>${esc(e.name)}</option>`).join('')||'<option>—</option>'}</select></label>
+        <label class="field"><span>Type</span><select id="f-kind">${['Salary','Advance','Bonus','Deduction','Overtime'].map(k=>`<option ${k===(d.kind||'Salary')?'selected':''}>${k}</option>`).join('')}</select></label>
+        <label class="field"><span>Basic Salary (Rs)</span><input id="f-basic" type="number" value="${d.basic||''}"/></label>
+        <label class="field"><span>Advance Taken (Rs)</span><input id="f-advance" type="number" value="${d.advance||0}"/></label>
+        <label class="field"><span>Bonus (Rs)</span><input id="f-bonus" type="number" value="${d.bonus||0}"/></label>
+        <label class="field"><span>Deductions (Rs)</span><input id="f-deduct" type="number" value="${d.deduct||0}"/></label>
+        <label class="field"><span>Paid Amount (Rs)</span><input id="f-amount" type="number" value="${d.amount||''}"/></label>
+        <label class="field"><span>Method</span><select id="f-method">${['Cash','Bank Transfer','Cheque','Easypaisa','JazzCash'].map(m=>`<option ${m===(d.method||'Cash')?'selected':''}>${m}</option>`).join('')}</select></label>
+        <label class="field" style="grid-column:1/-1"><span>Notes</span><textarea id="f-notes">${esc(d.notes||'')}</textarea></label>`;
+      },
+      collect:()=>{
+        const basic=+v('f-basic')||0,bonus=+v('f-bonus')||0,deduct=+v('f-deduct')||0,advance=+v('f-advance')||0;
+        const paid=+v('f-amount')||0;
+        const net=basic+bonus-deduct-advance;
+        return {date:v('f-date'),month:v('f-month'),employee:v('f-employee'),kind:v('f-kind'),
+          basic,bonus,deduct,advance,amount:paid,net,remaining:net-paid,
+          method:v('f-method'),notes:v('f-notes')};
+      }
+    };
+  }
+
+  /* ===== 3) Vehicle Movement Log form ===== */
+  function patchMovementForm(){
+    if(!window.FORMS) return setTimeout(patchMovementForm,300);
+    window.FORMS.movement={
+      title:(id)=>id?'Edit Movement':'Vehicle Movement Entry', key:K.move,
+      fields:(d)=>{
+        const veh=lj(K.veh); const sites=projectNames();
+        const locOpts=(val)=>sites.map(s=>`<option ${s===val?'selected':''}>${esc(s)}</option>`).join('');
+        return `
+        <label class="field"><span>Date</span><input type="date" id="f-date" value="${d.date||today()}"/></label>
+        <label class="field"><span>Vehicle / Bike Number</span>
+          <input id="f-vehicle" list="f-vehicle-list" value="${esc(d.vehicle||'')}" placeholder="e.g. LEB-1234"/>
+          <datalist id="f-vehicle-list">${veh.map(x=>`<option value="${esc(x.regNo)}">`).join('')}</datalist></label>
+        <label class="field"><span>Driver Name</span><input id="f-driver" value="${esc(d.driver||'')}"/></label>
+        <label class="field"><span>From Location</span>
+          <input id="f-from" list="f-loc-list" value="${esc(d.from||'')}" placeholder="Type or pick site"/></label>
+        <label class="field"><span>To Location</span>
+          <input id="f-to" list="f-loc-list" value="${esc(d.to||'')}" placeholder="Type or pick site"/></label>
+        <datalist id="f-loc-list">${sites.map(s=>`<option value="${esc(s)}">`).join('')}<option value="Office"><option value="Workshop"><option value="Warehouse"></datalist>
+        <label class="field"><span>Purpose</span><input id="f-purpose" value="${esc(d.purpose||'')}" placeholder="Material delivery, site visit…"/></label>
+        <label class="field"><span>Distance (km)</span><input id="f-dist" type="number" value="${d.dist||''}"/></label>
+        <label class="field"><span>Fuel Cost (Rs)</span><input id="f-fuel" type="number" value="${d.fuel||''}"/></label>
+        <label class="field" style="grid-column:1/-1"><span>Remarks</span><textarea id="f-remarks">${esc(d.remarks||'')}</textarea></label>`;
+      },
+      collect:()=>({date:v('f-date'),vehicle:v('f-vehicle'),driver:v('f-driver'),
+        from:v('f-from'),to:v('f-to'),purpose:v('f-purpose'),
+        dist:+v('f-dist')||0,fuel:+v('f-fuel')||0,remarks:v('f-remarks')}),
+      afterSave:(rec)=>{
+        // Auto-log fuel cost to vehicle expenses
+        if(rec.fuel>0){
+          const fuel=lj('erp-fuel-v1');
+          fuel.push({id:uid(),date:rec.date,vehicle:rec.vehicle,kind:'Fuel',
+            litres:0,odo:0,project:rec.to,amount:rec.fuel,
+            notes:'Movement: '+rec.from+' → '+rec.to+(rec.purpose?' ('+rec.purpose+')':'')});
+          sj('erp-fuel-v1',fuel);
+        }
+      }
+    };
+  }
+
+  /* ===== 4) Override erpExport: PDF + Excel + Print only (remove HTML) ===== */
+  function patchExport(){
+    if(typeof window.erpExport!=='function') return setTimeout(patchExport,300);
+    window.erpExport=(tblId,fmt,title)=>{
+      const t=document.getElementById(tblId); if(!t){alert('Nothing to export');return;}
+      const safeTitle=(title||'export').replace(/[^a-z0-9 _-]/gi,'_');
+      const stamp=new Date().toLocaleString();
+      const baseCSS=`body{font-family:Arial,sans-serif;padding:20px;color:#000}
+        h1{margin:0 0 6px;color:#b45309}.meta{color:#666;font-size:12px;margin-bottom:12px}
+        table{width:100%;border-collapse:collapse;font-size:12px}
+        th,td{border:1px solid #888;padding:6px 8px;text-align:left}
+        th{background:#fbbf24;color:#000}tr:nth-child(even) td{background:#fafafa}
+        .num{text-align:right}@media print{button{display:none}}`;
+      const doc=`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title>
+        <style>${baseCSS}</style></head><body>
+        <h1>Scope Solar — ${esc(title)}</h1><div class="meta">Generated: ${stamp}</div>
         ${t.outerHTML}</body></html>`;
+      if(fmt==='csv'||fmt==='excel'||fmt==='xls'){
+        // Excel-readable: HTML table with .xls extension
+        const blob=new Blob(['\uFEFF'+doc],{type:'application/vnd.ms-excel'});
+        downloadBlob(blob,safeTitle+'.xls');
+      } else if(fmt==='pdf'){
+        const w=window.open('','_blank');
+        w.document.write(doc+'<script>window.onload=()=>{window.print();}<\/script>');
+        w.document.close();
+      } else if(fmt==='print'){
+        const w=window.open('','_blank');
+        w.document.write(doc+'<script>window.onload=()=>window.print()<\/script>');
+        w.document.close();
+      } else if(fmt==='html'){
+        // Redirect HTML requests to PDF
+        window.erpExport(tblId,'pdf',title);
+      }
+    };
+  }
+  function downloadBlob(blob,name){
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();
+    setTimeout(()=>{a.remove();URL.revokeObjectURL(url)},100);
+  }
+
+  /* ===== 5) Rewrite export bar UI in all tables: PDF / Excel / Print only ===== */
+  function fixExportBars(){
+    document.querySelectorAll('.erp-export-bar, .export-bar, [data-export-bar]').forEach(bar=>{
+      // generic — handled by rewriteBars below
+    });
+    // Find every button calling erpExport(..., 'html', ...) and either remove or convert to PDF
+    document.querySelectorAll('button,a').forEach(b=>{
+      const oc=b.getAttribute('onclick')||'';
+      if(/erpExport\([^)]*'html'/.test(oc)){
+        b.remove();
+      }
+      if(/download.*\.html|export.*HTML|HTML\s*Download/i.test(b.textContent||'')){
+        b.remove();
+      }
+    });
+    // Inject PDF/Excel/Print buttons next to remaining CSV buttons if missing
+    document.querySelectorAll('button[onclick*="erpExport"]').forEach(b=>{
+      const oc=b.getAttribute('onclick')||'';
+      const m=oc.match(/erpExport\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]+)['"]/);
+      if(!m) return;
+      const [_,tbl,fmt,title]=m;
+      const parent=b.parentElement; if(!parent || parent.dataset.exportFixed) return;
+      parent.dataset.exportFixed='1';
+      // Remove all existing export buttons in parent
+      [...parent.querySelectorAll('button[onclick*="erpExport"]')].forEach(x=>x.remove());
+      const mk=(label,f)=>{const x=document.createElement('button');x.className='btn ghost';x.style.marginLeft='4px';
+        x.textContent=label;x.setAttribute('onclick',`erpExport('${tbl}','${f}','${title}')`);return x;};
+      parent.appendChild(mk('📄 PDF','pdf'));
+      parent.appendChild(mk('📊 Excel','excel'));
+      parent.appendChild(mk('🖨️ Print','print'));
+    });
+  }
+
+  /* ===== 6) Salary Sheet generator (printable + downloadable) ===== */
+  window.openSalarySheet=function(monthFilter){
+    const emps=lj(K.emp), pays=lj(K.pay);
+    const month=monthFilter||new Date().toISOString().slice(0,7);
+    const monthPays=pays.filter(p=>(p.month||(p.date||'').slice(0,7))===month);
+    // Group by employee
+    const rows=emps.map(e=>{
+      const items=monthPays.filter(p=>p.employee===e.name);
+      const basic=items.reduce((s,p)=>s+(+p.basic||0),0)||(+e.salary||0);
+      const advance=items.filter(p=>p.kind==='Advance').reduce((s,p)=>s+(+p.amount||0),0)
+                  + items.reduce((s,p)=>s+(+p.advance||0),0);
+      const bonus=items.filter(p=>p.kind==='Bonus').reduce((s,p)=>s+(+p.amount||0),0)
+                  + items.reduce((s,p)=>s+(+p.bonus||0),0);
+      const deduct=items.filter(p=>p.kind==='Deduction').reduce((s,p)=>s+(+p.amount||0),0)
+                  + items.reduce((s,p)=>s+(+p.deduct||0),0);
+      const paid=items.filter(p=>p.kind==='Salary'||p.kind==='Overtime').reduce((s,p)=>s+(+p.amount||0),0);
+      const net=basic+bonus-deduct-advance;
+      const remaining=net-paid;
+      return {e,basic,advance,bonus,deduct,paid,net,remaining};
+    });
+    const monthLabel=new Date(month+'-01').toLocaleDateString('en-PK',{month:'long',year:'numeric'});
+    const html=`<!doctype html><html><head><meta charset="utf-8"><title>Salary Sheet ${monthLabel}</title>
+      <style>body{font-family:Arial,sans-serif;padding:20px;color:#000}
+      h1{margin:0;color:#b45309}.hdr{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #fbbf24;padding-bottom:10px;margin-bottom:14px}
+      .meta{font-size:12px;color:#555}
+      table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:18px}
+      th,td{border:1px solid #888;padding:5px 6px}th{background:#fbbf24;text-align:left}
+      .num{text-align:right;font-variant-numeric:tabular-nums}
+      tfoot td{background:#fef3c7;font-weight:700}
+      .pay-block{margin-top:10px;font-size:11px;color:#444}
+      .toolbar{margin-bottom:14px}.toolbar button{padding:8px 14px;margin-right:6px;border:1px solid #b45309;background:#fbbf24;cursor:pointer;border-radius:6px;font-weight:600}
+      @media print{.toolbar{display:none}}
+      </style></head><body>
+      <div class="toolbar">
+        <button onclick="window.print()">🖨️ Print / Save as PDF</button>
+        <button onclick="downloadXls()">📊 Download Excel</button>
+      </div>
+      <div class="hdr"><div><h1>Scope Solar — Salary Sheet</h1>
+        <div class="meta">Month: <b>${monthLabel}</b></div></div>
+        <div class="meta">Generated: ${new Date().toLocaleString()}</div></div>
+      <table id="sheet"><thead><tr>
+        <th>#</th><th>Employee</th><th>Designation</th><th>Month</th>
+        <th class="num">Basic</th><th class="num">Bonus</th><th class="num">Deductions</th>
+        <th class="num">Advance</th><th class="num">Net Payable</th>
+        <th class="num">Paid</th><th class="num">Remaining</th>
+        <th>Bank</th><th>Account / IBAN</th><th>Easypaisa</th><th>JazzCash</th>
+      </tr></thead><tbody>
+      ${rows.map((r,i)=>`<tr>
+        <td>${i+1}</td><td>${esc(r.e.name)}</td><td>${esc(r.e.role||'')}</td><td>${monthLabel}</td>
+        <td class="num">${r.basic.toLocaleString()}</td>
+        <td class="num">${r.bonus.toLocaleString()}</td>
+        <td class="num">${r.deduct.toLocaleString()}</td>
+        <td class="num">${r.advance.toLocaleString()}</td>
+        <td class="num"><b>${r.net.toLocaleString()}</b></td>
+        <td class="num">${r.paid.toLocaleString()}</td>
+        <td class="num" style="color:${r.remaining>0?'#b91c1c':'#15803d'}">${r.remaining.toLocaleString()}</td>
+        <td>${esc(r.e.bank||'')}</td>
+        <td>${esc(r.e.acct||'')}${r.e.iban?'<br><small>'+esc(r.e.iban)+'</small>':''}</td>
+        <td>${esc(r.e.easy||'')}</td>
+        <td>${esc(r.e.jazz||'')}</td>
+      </tr>`).join('')}
+      </tbody><tfoot><tr>
+        <td colspan="4">TOTAL</td>
+        <td class="num">${rows.reduce((s,r)=>s+r.basic,0).toLocaleString()}</td>
+        <td class="num">${rows.reduce((s,r)=>s+r.bonus,0).toLocaleString()}</td>
+        <td class="num">${rows.reduce((s,r)=>s+r.deduct,0).toLocaleString()}</td>
+        <td class="num">${rows.reduce((s,r)=>s+r.advance,0).toLocaleString()}</td>
+        <td class="num">${rows.reduce((s,r)=>s+r.net,0).toLocaleString()}</td>
+        <td class="num">${rows.reduce((s,r)=>s+r.paid,0).toLocaleString()}</td>
+        <td class="num">${rows.reduce((s,r)=>s+r.remaining,0).toLocaleString()}</td>
+        <td colspan="4"></td>
+      </tr></tfoot></table>
+      <div class="pay-block">Prepared by Accounts Dept. — Scope Solar Management System</div>
+      <script>
+        function downloadXls(){
+          const t=document.getElementById('sheet').outerHTML;
+          const html='<html><head><meta charset="utf-8"></head><body><h2>Salary Sheet ${monthLabel}</h2>'+t+'</body></html>';
+          const blob=new Blob(['\\uFEFF'+html],{type:'application/vnd.ms-excel'});
+          const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+          a.download='Salary_Sheet_${month}.xls';a.click();
+        }
+      <\/script></body></html>`;
+    const w=window.open('','_blank');w.document.write(html);w.document.close();
+  };
+
+  /* ===== 7) Add Salary Sheet button + Vehicle Movement section to ERP tabs ===== */
+  function injectExtras(){
+    // Salary Sheet button in payroll tab
+    if(window.tabs && window.tabs.payroll && !window.tabs._origPayroll){
+      window.tabs._origPayroll=window.tabs.payroll;
+      window.tabs.payroll=(el)=>{
+        window.tabs._origPayroll(el);
+        // Inject month picker + Salary Sheet button
+        const header=el.querySelector('.erp-row, .row, div');
+        if(el && !el.querySelector('#salary-sheet-bar')){
+          const bar=document.createElement('div');
+          bar.id='salary-sheet-bar';
+          bar.style.cssText='display:flex;gap:8px;align-items:center;margin:10px 0;padding:10px;background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;flex-wrap:wrap';
+          bar.innerHTML=`<b>📋 Professional Salary Sheet:</b>
+            <input type="month" id="ss-month" value="${new Date().toISOString().slice(0,7)}" style="padding:6px;border:1px solid #ccc;border-radius:4px"/>
+            <button class="btn" onclick="openSalarySheet(document.getElementById('ss-month').value)">📄 Generate Salary Sheet (PDF/Excel/Print)</button>`;
+          el.insertBefore(bar,el.firstChild.nextSibling||el.firstChild);
+        }
+      };
+    }
+    // Vehicle Movement Log in vehicles tab
+    if(window.tabs && window.tabs.vehicles && !window.tabs._origVehicles){
+      window.tabs._origVehicles=window.tabs.vehicles;
+      window.tabs.vehicles=(el)=>{
+        window.tabs._origVehicles(el);
+        if(el && !el.querySelector('#vmove-section')){
+          const moves=lj(K.move);
+          const sec=document.createElement('div');
+          sec.id='vmove-section';
+          sec.style.cssText='margin-top:18px';
+          sec.innerHTML=`
+            <div class="erp-section-title">🛣️ Vehicle Movement Log (Daily Entry)</div>
+            <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+              <button class="btn" onclick="erpOpen('movement')">+ Add Movement Entry</button>
+              <input id="vmove-search" placeholder="Search vehicle, driver, location…" oninput="erpFilter('vmove-tbl',this.value)" style="flex:1;min-width:200px;padding:6px;border:1px solid #ccc;border-radius:4px"/>
+              <button class="btn ghost" onclick="erpExport('vmove-tbl','pdf','Vehicle Movement Log')">📄 PDF</button>
+              <button class="btn ghost" onclick="erpExport('vmove-tbl','excel','Vehicle Movement Log')">📊 Excel</button>
+              <button class="btn ghost" onclick="erpExport('vmove-tbl','print','Vehicle Movement Log')">🖨️ Print</button>
+            </div>
+            <div style="overflow:auto"><table id="vmove-tbl" class="erp-table" style="width:100%;border-collapse:collapse">
+              <thead><tr style="background:#fbbf24">
+                <th style="padding:6px;border:1px solid #ddd">Date</th>
+                <th style="padding:6px;border:1px solid #ddd">Vehicle</th>
+                <th style="padding:6px;border:1px solid #ddd">Driver</th>
+                <th style="padding:6px;border:1px solid #ddd">From</th>
+                <th style="padding:6px;border:1px solid #ddd">To</th>
+                <th style="padding:6px;border:1px solid #ddd">Purpose</th>
+                <th style="padding:6px;border:1px solid #ddd">Distance (km)</th>
+                <th style="padding:6px;border:1px solid #ddd">Fuel (Rs)</th>
+                <th style="padding:6px;border:1px solid #ddd">Remarks</th>
+                <th style="padding:6px;border:1px solid #ddd"></th>
+              </tr></thead><tbody>
+              ${moves.length?moves.slice().reverse().map(m=>`<tr>
+                <td style="padding:5px;border:1px solid #eee">${esc(m.date)}</td>
+                <td style="padding:5px;border:1px solid #eee">${esc(m.vehicle)}</td>
+                <td style="padding:5px;border:1px solid #eee">${esc(m.driver)}</td>
+                <td style="padding:5px;border:1px solid #eee">${esc(m.from)}</td>
+                <td style="padding:5px;border:1px solid #eee">${esc(m.to)}</td>
+                <td style="padding:5px;border:1px solid #eee">${esc(m.purpose||'')}</td>
+                <td style="padding:5px;border:1px solid #eee;text-align:right">${m.dist||0}</td>
+                <td style="padding:5px;border:1px solid #eee;text-align:right">${(+m.fuel||0).toLocaleString()}</td>
+                <td style="padding:5px;border:1px solid #eee">${esc(m.remarks||'')}</td>
+                <td style="padding:5px;border:1px solid #eee"><button onclick="erpOpen('movement','${m.id}')">Edit</button></td>
+              </tr>`).join(''):'<tr><td colspan="10" style="padding:14px;text-align:center;color:#888">No movement entries yet. Click "+ Add Movement Entry"</td></tr>'}
+              </tbody></table></div>`;
+          el.appendChild(sec);
+        }
+      };
+    }
+  }
+
+  /* ===== 8) Instant User Save: refresh immediately on add ===== */
+  const _addUserPrev=window.addUser;
+  window.addUser=function(){
+    const r=_addUserPrev?_addUserPrev.apply(this,arguments):undefined;
+    // Immediate refresh, no 30ms delay
+    try{window.dispatchEvent(new CustomEvent('solar:data-changed',{detail:{kind:'users'}}));}catch(_){}
+    try{if(typeof window.__solarRefreshAll==='function') window.__solarRefreshAll();}catch(_){}
+    return r;
+  };
+
+  /* ===== 9) Performance: throttle storage event spam ===== */
+  // (handled by existing requestAnimationFrame in TRACKER_14)
+
+  /* ===== Init ===== */
+  function init(){
+    patchEmployeeForm(); patchPayrollForm(); patchMovementForm();
+    patchExport(); injectExtras();
+    // First export-bar sweep + on every ERP tab change
+    setTimeout(fixExportBars,500);
+    setInterval(fixExportBars,2000);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init);
+  else init();
+})();
+</script>
+
+</body></html>`;
       downloadBlob(new Blob([html],{type:'text/html'}), safeTitle+'.html');
     } else if(fmt==='print'){
       const w = window.open('', '_blank');
@@ -3711,7 +4082,378 @@ refreshNotifDot();
         <style>body{font-family:system-ui;padding:20px;color:#000}table{width:100%;border-collapse:collapse;font-size:12px}
         th,td{border:1px solid #888;padding:5px 8px;text-align:left}th{background:#fbbf24}h1{margin:0 0 6px}</style></head>
         <body><h1>Scope Solar — ${esc(title)}</h1><div style="color:#666;margin-bottom:10px">Generated: ${new Date().toLocaleString()}</div>
-        ${t.outerHTML}<script>window.onload=()=>window.print()<\/script></body></html>`);
+        ${t.outerHTML}<script>window.onload=()=>window.print()<\/script><script>
+/* ============ TRACKER_15: Bank/Salary, Vehicle Movement, Export PDF/Excel only, Instant User Save ============ */
+(function(){
+  const K={emp:'erp-employees-v1',pay:'erp-payroll-v1',veh:'erp-vehicles-v1',move:'erp-vmove-v1'};
+  const PKEY='solar-projects-v1';
+  function lj(k){try{return JSON.parse(localStorage.getItem(k))||[];}catch(_){return [];}}
+  function sj(k,a){localStorage.setItem(k,JSON.stringify(a));}
+  function uid(){return 'id'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+  function today(){return new Date().toISOString().slice(0,10);}
+  function money(n){n=+n||0;return 'Rs '+n.toLocaleString('en-PK',{maximumFractionDigits:0});}
+  function v(id){const el=document.getElementById(id);return el?el.value:'';}
+  function projects(){try{return JSON.parse(localStorage.getItem(PKEY))||[];}catch(_){return [];}}
+  function projectNames(){return projects().map(p=>p.title||p.name||p.client||p.location||p.id).filter(Boolean);}
+
+  /* ===== 1) Override Employee form: add Bank fields ===== */
+  function patchEmployeeForm(){
+    if(!window.FORMS || !window.FORMS.employee) return setTimeout(patchEmployeeForm,300);
+    const old=window.FORMS.employee;
+    window.FORMS.employee={
+      title:old.title, key:old.key,
+      fields:(d)=>`
+        <label class="field"><span>Name</span><input id="f-name" value="${esc(d.name||'')}"/></label>
+        <label class="field"><span>Designation / Role</span><input id="f-role" value="${esc(d.role||'')}" placeholder="Technician, Manager…"/></label>
+        <label class="field"><span>Contact</span><input id="f-contact" value="${esc(d.contact||'')}"/></label>
+        <label class="field"><span>CNIC</span><input id="f-cnic" value="${esc(d.cnic||'')}"/></label>
+        <label class="field"><span>Monthly Salary (Rs)</span><input id="f-salary" type="number" value="${d.salary||''}"/></label>
+        <label class="field"><span>Joined</span><input id="f-joined" type="date" value="${d.joined||''}"/></label>
+        <label class="field"><span>Address</span><input id="f-address" value="${esc(d.address||'')}"/></label>
+        <div class="erp-section-title" style="grid-column:1/-1;margin-top:8px">🏦 Bank & Mobile Wallet Details</div>
+        <label class="field"><span>Bank Name</span><input id="f-bank" value="${esc(d.bank||'')}"/></label>
+        <label class="field"><span>Bank Account Number</span><input id="f-acct" value="${esc(d.acct||'')}"/></label>
+        <label class="field"><span>IBAN Number</span><input id="f-iban" value="${esc(d.iban||'')}"/></label>
+        <label class="field"><span>Easypaisa Number</span><input id="f-easy" value="${esc(d.easy||'')}"/></label>
+        <label class="field"><span>JazzCash Number</span><input id="f-jazz" value="${esc(d.jazz||'')}"/></label>`,
+      collect:()=>({
+        name:v('f-name'),role:v('f-role'),contact:v('f-contact'),cnic:v('f-cnic'),
+        salary:+v('f-salary')||0,joined:v('f-joined'),address:v('f-address'),
+        bank:v('f-bank'),acct:v('f-acct'),iban:v('f-iban'),easy:v('f-easy'),jazz:v('f-jazz')
+      })
+    };
+  }
+
+  /* ===== 2) Override Payroll form: full salary structure ===== */
+  function patchPayrollForm(){
+    if(!window.FORMS || !window.FORMS.payroll) return setTimeout(patchPayrollForm,300);
+    window.FORMS.payroll={
+      title:(id)=>id?'Edit Salary':'Pay Salary / Advance', key:K.pay,
+      fields:(d)=>{
+        const emps=lj(K.emp);
+        const monthDef=d.month||new Date().toISOString().slice(0,7);
+        return `
+        <label class="field"><span>Date</span><input type="date" id="f-date" value="${d.date||today()}"/></label>
+        <label class="field"><span>Salary Month</span><input type="month" id="f-month" value="${monthDef}"/></label>
+        <label class="field"><span>Employee</span><select id="f-employee">${emps.map(e=>`<option ${e.name===d.employee?'selected':''}>${esc(e.name)}</option>`).join('')||'<option>—</option>'}</select></label>
+        <label class="field"><span>Type</span><select id="f-kind">${['Salary','Advance','Bonus','Deduction','Overtime'].map(k=>`<option ${k===(d.kind||'Salary')?'selected':''}>${k}</option>`).join('')}</select></label>
+        <label class="field"><span>Basic Salary (Rs)</span><input id="f-basic" type="number" value="${d.basic||''}"/></label>
+        <label class="field"><span>Advance Taken (Rs)</span><input id="f-advance" type="number" value="${d.advance||0}"/></label>
+        <label class="field"><span>Bonus (Rs)</span><input id="f-bonus" type="number" value="${d.bonus||0}"/></label>
+        <label class="field"><span>Deductions (Rs)</span><input id="f-deduct" type="number" value="${d.deduct||0}"/></label>
+        <label class="field"><span>Paid Amount (Rs)</span><input id="f-amount" type="number" value="${d.amount||''}"/></label>
+        <label class="field"><span>Method</span><select id="f-method">${['Cash','Bank Transfer','Cheque','Easypaisa','JazzCash'].map(m=>`<option ${m===(d.method||'Cash')?'selected':''}>${m}</option>`).join('')}</select></label>
+        <label class="field" style="grid-column:1/-1"><span>Notes</span><textarea id="f-notes">${esc(d.notes||'')}</textarea></label>`;
+      },
+      collect:()=>{
+        const basic=+v('f-basic')||0,bonus=+v('f-bonus')||0,deduct=+v('f-deduct')||0,advance=+v('f-advance')||0;
+        const paid=+v('f-amount')||0;
+        const net=basic+bonus-deduct-advance;
+        return {date:v('f-date'),month:v('f-month'),employee:v('f-employee'),kind:v('f-kind'),
+          basic,bonus,deduct,advance,amount:paid,net,remaining:net-paid,
+          method:v('f-method'),notes:v('f-notes')};
+      }
+    };
+  }
+
+  /* ===== 3) Vehicle Movement Log form ===== */
+  function patchMovementForm(){
+    if(!window.FORMS) return setTimeout(patchMovementForm,300);
+    window.FORMS.movement={
+      title:(id)=>id?'Edit Movement':'Vehicle Movement Entry', key:K.move,
+      fields:(d)=>{
+        const veh=lj(K.veh); const sites=projectNames();
+        const locOpts=(val)=>sites.map(s=>`<option ${s===val?'selected':''}>${esc(s)}</option>`).join('');
+        return `
+        <label class="field"><span>Date</span><input type="date" id="f-date" value="${d.date||today()}"/></label>
+        <label class="field"><span>Vehicle / Bike Number</span>
+          <input id="f-vehicle" list="f-vehicle-list" value="${esc(d.vehicle||'')}" placeholder="e.g. LEB-1234"/>
+          <datalist id="f-vehicle-list">${veh.map(x=>`<option value="${esc(x.regNo)}">`).join('')}</datalist></label>
+        <label class="field"><span>Driver Name</span><input id="f-driver" value="${esc(d.driver||'')}"/></label>
+        <label class="field"><span>From Location</span>
+          <input id="f-from" list="f-loc-list" value="${esc(d.from||'')}" placeholder="Type or pick site"/></label>
+        <label class="field"><span>To Location</span>
+          <input id="f-to" list="f-loc-list" value="${esc(d.to||'')}" placeholder="Type or pick site"/></label>
+        <datalist id="f-loc-list">${sites.map(s=>`<option value="${esc(s)}">`).join('')}<option value="Office"><option value="Workshop"><option value="Warehouse"></datalist>
+        <label class="field"><span>Purpose</span><input id="f-purpose" value="${esc(d.purpose||'')}" placeholder="Material delivery, site visit…"/></label>
+        <label class="field"><span>Distance (km)</span><input id="f-dist" type="number" value="${d.dist||''}"/></label>
+        <label class="field"><span>Fuel Cost (Rs)</span><input id="f-fuel" type="number" value="${d.fuel||''}"/></label>
+        <label class="field" style="grid-column:1/-1"><span>Remarks</span><textarea id="f-remarks">${esc(d.remarks||'')}</textarea></label>`;
+      },
+      collect:()=>({date:v('f-date'),vehicle:v('f-vehicle'),driver:v('f-driver'),
+        from:v('f-from'),to:v('f-to'),purpose:v('f-purpose'),
+        dist:+v('f-dist')||0,fuel:+v('f-fuel')||0,remarks:v('f-remarks')}),
+      afterSave:(rec)=>{
+        // Auto-log fuel cost to vehicle expenses
+        if(rec.fuel>0){
+          const fuel=lj('erp-fuel-v1');
+          fuel.push({id:uid(),date:rec.date,vehicle:rec.vehicle,kind:'Fuel',
+            litres:0,odo:0,project:rec.to,amount:rec.fuel,
+            notes:'Movement: '+rec.from+' → '+rec.to+(rec.purpose?' ('+rec.purpose+')':'')});
+          sj('erp-fuel-v1',fuel);
+        }
+      }
+    };
+  }
+
+  /* ===== 4) Override erpExport: PDF + Excel + Print only (remove HTML) ===== */
+  function patchExport(){
+    if(typeof window.erpExport!=='function') return setTimeout(patchExport,300);
+    window.erpExport=(tblId,fmt,title)=>{
+      const t=document.getElementById(tblId); if(!t){alert('Nothing to export');return;}
+      const safeTitle=(title||'export').replace(/[^a-z0-9 _-]/gi,'_');
+      const stamp=new Date().toLocaleString();
+      const baseCSS=`body{font-family:Arial,sans-serif;padding:20px;color:#000}
+        h1{margin:0 0 6px;color:#b45309}.meta{color:#666;font-size:12px;margin-bottom:12px}
+        table{width:100%;border-collapse:collapse;font-size:12px}
+        th,td{border:1px solid #888;padding:6px 8px;text-align:left}
+        th{background:#fbbf24;color:#000}tr:nth-child(even) td{background:#fafafa}
+        .num{text-align:right}@media print{button{display:none}}`;
+      const doc=`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title>
+        <style>${baseCSS}</style></head><body>
+        <h1>Scope Solar — ${esc(title)}</h1><div class="meta">Generated: ${stamp}</div>
+        ${t.outerHTML}</body></html>`;
+      if(fmt==='csv'||fmt==='excel'||fmt==='xls'){
+        // Excel-readable: HTML table with .xls extension
+        const blob=new Blob(['\uFEFF'+doc],{type:'application/vnd.ms-excel'});
+        downloadBlob(blob,safeTitle+'.xls');
+      } else if(fmt==='pdf'){
+        const w=window.open('','_blank');
+        w.document.write(doc+'<script>window.onload=()=>{window.print();}<\/script>');
+        w.document.close();
+      } else if(fmt==='print'){
+        const w=window.open('','_blank');
+        w.document.write(doc+'<script>window.onload=()=>window.print()<\/script>');
+        w.document.close();
+      } else if(fmt==='html'){
+        // Redirect HTML requests to PDF
+        window.erpExport(tblId,'pdf',title);
+      }
+    };
+  }
+  function downloadBlob(blob,name){
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();
+    setTimeout(()=>{a.remove();URL.revokeObjectURL(url)},100);
+  }
+
+  /* ===== 5) Rewrite export bar UI in all tables: PDF / Excel / Print only ===== */
+  function fixExportBars(){
+    document.querySelectorAll('.erp-export-bar, .export-bar, [data-export-bar]').forEach(bar=>{
+      // generic — handled by rewriteBars below
+    });
+    // Find every button calling erpExport(..., 'html', ...) and either remove or convert to PDF
+    document.querySelectorAll('button,a').forEach(b=>{
+      const oc=b.getAttribute('onclick')||'';
+      if(/erpExport\([^)]*'html'/.test(oc)){
+        b.remove();
+      }
+      if(/download.*\.html|export.*HTML|HTML\s*Download/i.test(b.textContent||'')){
+        b.remove();
+      }
+    });
+    // Inject PDF/Excel/Print buttons next to remaining CSV buttons if missing
+    document.querySelectorAll('button[onclick*="erpExport"]').forEach(b=>{
+      const oc=b.getAttribute('onclick')||'';
+      const m=oc.match(/erpExport\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]+)['"]/);
+      if(!m) return;
+      const [_,tbl,fmt,title]=m;
+      const parent=b.parentElement; if(!parent || parent.dataset.exportFixed) return;
+      parent.dataset.exportFixed='1';
+      // Remove all existing export buttons in parent
+      [...parent.querySelectorAll('button[onclick*="erpExport"]')].forEach(x=>x.remove());
+      const mk=(label,f)=>{const x=document.createElement('button');x.className='btn ghost';x.style.marginLeft='4px';
+        x.textContent=label;x.setAttribute('onclick',`erpExport('${tbl}','${f}','${title}')`);return x;};
+      parent.appendChild(mk('📄 PDF','pdf'));
+      parent.appendChild(mk('📊 Excel','excel'));
+      parent.appendChild(mk('🖨️ Print','print'));
+    });
+  }
+
+  /* ===== 6) Salary Sheet generator (printable + downloadable) ===== */
+  window.openSalarySheet=function(monthFilter){
+    const emps=lj(K.emp), pays=lj(K.pay);
+    const month=monthFilter||new Date().toISOString().slice(0,7);
+    const monthPays=pays.filter(p=>(p.month||(p.date||'').slice(0,7))===month);
+    // Group by employee
+    const rows=emps.map(e=>{
+      const items=monthPays.filter(p=>p.employee===e.name);
+      const basic=items.reduce((s,p)=>s+(+p.basic||0),0)||(+e.salary||0);
+      const advance=items.filter(p=>p.kind==='Advance').reduce((s,p)=>s+(+p.amount||0),0)
+                  + items.reduce((s,p)=>s+(+p.advance||0),0);
+      const bonus=items.filter(p=>p.kind==='Bonus').reduce((s,p)=>s+(+p.amount||0),0)
+                  + items.reduce((s,p)=>s+(+p.bonus||0),0);
+      const deduct=items.filter(p=>p.kind==='Deduction').reduce((s,p)=>s+(+p.amount||0),0)
+                  + items.reduce((s,p)=>s+(+p.deduct||0),0);
+      const paid=items.filter(p=>p.kind==='Salary'||p.kind==='Overtime').reduce((s,p)=>s+(+p.amount||0),0);
+      const net=basic+bonus-deduct-advance;
+      const remaining=net-paid;
+      return {e,basic,advance,bonus,deduct,paid,net,remaining};
+    });
+    const monthLabel=new Date(month+'-01').toLocaleDateString('en-PK',{month:'long',year:'numeric'});
+    const html=`<!doctype html><html><head><meta charset="utf-8"><title>Salary Sheet ${monthLabel}</title>
+      <style>body{font-family:Arial,sans-serif;padding:20px;color:#000}
+      h1{margin:0;color:#b45309}.hdr{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #fbbf24;padding-bottom:10px;margin-bottom:14px}
+      .meta{font-size:12px;color:#555}
+      table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:18px}
+      th,td{border:1px solid #888;padding:5px 6px}th{background:#fbbf24;text-align:left}
+      .num{text-align:right;font-variant-numeric:tabular-nums}
+      tfoot td{background:#fef3c7;font-weight:700}
+      .pay-block{margin-top:10px;font-size:11px;color:#444}
+      .toolbar{margin-bottom:14px}.toolbar button{padding:8px 14px;margin-right:6px;border:1px solid #b45309;background:#fbbf24;cursor:pointer;border-radius:6px;font-weight:600}
+      @media print{.toolbar{display:none}}
+      </style></head><body>
+      <div class="toolbar">
+        <button onclick="window.print()">🖨️ Print / Save as PDF</button>
+        <button onclick="downloadXls()">📊 Download Excel</button>
+      </div>
+      <div class="hdr"><div><h1>Scope Solar — Salary Sheet</h1>
+        <div class="meta">Month: <b>${monthLabel}</b></div></div>
+        <div class="meta">Generated: ${new Date().toLocaleString()}</div></div>
+      <table id="sheet"><thead><tr>
+        <th>#</th><th>Employee</th><th>Designation</th><th>Month</th>
+        <th class="num">Basic</th><th class="num">Bonus</th><th class="num">Deductions</th>
+        <th class="num">Advance</th><th class="num">Net Payable</th>
+        <th class="num">Paid</th><th class="num">Remaining</th>
+        <th>Bank</th><th>Account / IBAN</th><th>Easypaisa</th><th>JazzCash</th>
+      </tr></thead><tbody>
+      ${rows.map((r,i)=>`<tr>
+        <td>${i+1}</td><td>${esc(r.e.name)}</td><td>${esc(r.e.role||'')}</td><td>${monthLabel}</td>
+        <td class="num">${r.basic.toLocaleString()}</td>
+        <td class="num">${r.bonus.toLocaleString()}</td>
+        <td class="num">${r.deduct.toLocaleString()}</td>
+        <td class="num">${r.advance.toLocaleString()}</td>
+        <td class="num"><b>${r.net.toLocaleString()}</b></td>
+        <td class="num">${r.paid.toLocaleString()}</td>
+        <td class="num" style="color:${r.remaining>0?'#b91c1c':'#15803d'}">${r.remaining.toLocaleString()}</td>
+        <td>${esc(r.e.bank||'')}</td>
+        <td>${esc(r.e.acct||'')}${r.e.iban?'<br><small>'+esc(r.e.iban)+'</small>':''}</td>
+        <td>${esc(r.e.easy||'')}</td>
+        <td>${esc(r.e.jazz||'')}</td>
+      </tr>`).join('')}
+      </tbody><tfoot><tr>
+        <td colspan="4">TOTAL</td>
+        <td class="num">${rows.reduce((s,r)=>s+r.basic,0).toLocaleString()}</td>
+        <td class="num">${rows.reduce((s,r)=>s+r.bonus,0).toLocaleString()}</td>
+        <td class="num">${rows.reduce((s,r)=>s+r.deduct,0).toLocaleString()}</td>
+        <td class="num">${rows.reduce((s,r)=>s+r.advance,0).toLocaleString()}</td>
+        <td class="num">${rows.reduce((s,r)=>s+r.net,0).toLocaleString()}</td>
+        <td class="num">${rows.reduce((s,r)=>s+r.paid,0).toLocaleString()}</td>
+        <td class="num">${rows.reduce((s,r)=>s+r.remaining,0).toLocaleString()}</td>
+        <td colspan="4"></td>
+      </tr></tfoot></table>
+      <div class="pay-block">Prepared by Accounts Dept. — Scope Solar Management System</div>
+      <script>
+        function downloadXls(){
+          const t=document.getElementById('sheet').outerHTML;
+          const html='<html><head><meta charset="utf-8"></head><body><h2>Salary Sheet ${monthLabel}</h2>'+t+'</body></html>';
+          const blob=new Blob(['\\uFEFF'+html],{type:'application/vnd.ms-excel'});
+          const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+          a.download='Salary_Sheet_${month}.xls';a.click();
+        }
+      <\/script></body></html>`;
+    const w=window.open('','_blank');w.document.write(html);w.document.close();
+  };
+
+  /* ===== 7) Add Salary Sheet button + Vehicle Movement section to ERP tabs ===== */
+  function injectExtras(){
+    // Salary Sheet button in payroll tab
+    if(window.tabs && window.tabs.payroll && !window.tabs._origPayroll){
+      window.tabs._origPayroll=window.tabs.payroll;
+      window.tabs.payroll=(el)=>{
+        window.tabs._origPayroll(el);
+        // Inject month picker + Salary Sheet button
+        const header=el.querySelector('.erp-row, .row, div');
+        if(el && !el.querySelector('#salary-sheet-bar')){
+          const bar=document.createElement('div');
+          bar.id='salary-sheet-bar';
+          bar.style.cssText='display:flex;gap:8px;align-items:center;margin:10px 0;padding:10px;background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;flex-wrap:wrap';
+          bar.innerHTML=`<b>📋 Professional Salary Sheet:</b>
+            <input type="month" id="ss-month" value="${new Date().toISOString().slice(0,7)}" style="padding:6px;border:1px solid #ccc;border-radius:4px"/>
+            <button class="btn" onclick="openSalarySheet(document.getElementById('ss-month').value)">📄 Generate Salary Sheet (PDF/Excel/Print)</button>`;
+          el.insertBefore(bar,el.firstChild.nextSibling||el.firstChild);
+        }
+      };
+    }
+    // Vehicle Movement Log in vehicles tab
+    if(window.tabs && window.tabs.vehicles && !window.tabs._origVehicles){
+      window.tabs._origVehicles=window.tabs.vehicles;
+      window.tabs.vehicles=(el)=>{
+        window.tabs._origVehicles(el);
+        if(el && !el.querySelector('#vmove-section')){
+          const moves=lj(K.move);
+          const sec=document.createElement('div');
+          sec.id='vmove-section';
+          sec.style.cssText='margin-top:18px';
+          sec.innerHTML=`
+            <div class="erp-section-title">🛣️ Vehicle Movement Log (Daily Entry)</div>
+            <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+              <button class="btn" onclick="erpOpen('movement')">+ Add Movement Entry</button>
+              <input id="vmove-search" placeholder="Search vehicle, driver, location…" oninput="erpFilter('vmove-tbl',this.value)" style="flex:1;min-width:200px;padding:6px;border:1px solid #ccc;border-radius:4px"/>
+              <button class="btn ghost" onclick="erpExport('vmove-tbl','pdf','Vehicle Movement Log')">📄 PDF</button>
+              <button class="btn ghost" onclick="erpExport('vmove-tbl','excel','Vehicle Movement Log')">📊 Excel</button>
+              <button class="btn ghost" onclick="erpExport('vmove-tbl','print','Vehicle Movement Log')">🖨️ Print</button>
+            </div>
+            <div style="overflow:auto"><table id="vmove-tbl" class="erp-table" style="width:100%;border-collapse:collapse">
+              <thead><tr style="background:#fbbf24">
+                <th style="padding:6px;border:1px solid #ddd">Date</th>
+                <th style="padding:6px;border:1px solid #ddd">Vehicle</th>
+                <th style="padding:6px;border:1px solid #ddd">Driver</th>
+                <th style="padding:6px;border:1px solid #ddd">From</th>
+                <th style="padding:6px;border:1px solid #ddd">To</th>
+                <th style="padding:6px;border:1px solid #ddd">Purpose</th>
+                <th style="padding:6px;border:1px solid #ddd">Distance (km)</th>
+                <th style="padding:6px;border:1px solid #ddd">Fuel (Rs)</th>
+                <th style="padding:6px;border:1px solid #ddd">Remarks</th>
+                <th style="padding:6px;border:1px solid #ddd"></th>
+              </tr></thead><tbody>
+              ${moves.length?moves.slice().reverse().map(m=>`<tr>
+                <td style="padding:5px;border:1px solid #eee">${esc(m.date)}</td>
+                <td style="padding:5px;border:1px solid #eee">${esc(m.vehicle)}</td>
+                <td style="padding:5px;border:1px solid #eee">${esc(m.driver)}</td>
+                <td style="padding:5px;border:1px solid #eee">${esc(m.from)}</td>
+                <td style="padding:5px;border:1px solid #eee">${esc(m.to)}</td>
+                <td style="padding:5px;border:1px solid #eee">${esc(m.purpose||'')}</td>
+                <td style="padding:5px;border:1px solid #eee;text-align:right">${m.dist||0}</td>
+                <td style="padding:5px;border:1px solid #eee;text-align:right">${(+m.fuel||0).toLocaleString()}</td>
+                <td style="padding:5px;border:1px solid #eee">${esc(m.remarks||'')}</td>
+                <td style="padding:5px;border:1px solid #eee"><button onclick="erpOpen('movement','${m.id}')">Edit</button></td>
+              </tr>`).join(''):'<tr><td colspan="10" style="padding:14px;text-align:center;color:#888">No movement entries yet. Click "+ Add Movement Entry"</td></tr>'}
+              </tbody></table></div>`;
+          el.appendChild(sec);
+        }
+      };
+    }
+  }
+
+  /* ===== 8) Instant User Save: refresh immediately on add ===== */
+  const _addUserPrev=window.addUser;
+  window.addUser=function(){
+    const r=_addUserPrev?_addUserPrev.apply(this,arguments):undefined;
+    // Immediate refresh, no 30ms delay
+    try{window.dispatchEvent(new CustomEvent('solar:data-changed',{detail:{kind:'users'}}));}catch(_){}
+    try{if(typeof window.__solarRefreshAll==='function') window.__solarRefreshAll();}catch(_){}
+    return r;
+  };
+
+  /* ===== 9) Performance: throttle storage event spam ===== */
+  // (handled by existing requestAnimationFrame in TRACKER_14)
+
+  /* ===== Init ===== */
+  function init(){
+    patchEmployeeForm(); patchPayrollForm(); patchMovementForm();
+    patchExport(); injectExtras();
+    // First export-bar sweep + on every ERP tab change
+    setTimeout(fixExportBars,500);
+    setInterval(fixExportBars,2000);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init);
+  else init();
+})();
+</script>
+
+</body></html>`);
       w.document.close();
     }
   };
@@ -3848,4 +4590,375 @@ refreshNotifDot();
   else window.addEventListener('load', ()=>setTimeout(refreshAll, 600));
 })();
 </script>
+<script>
+/* ============ TRACKER_15: Bank/Salary, Vehicle Movement, Export PDF/Excel only, Instant User Save ============ */
+(function(){
+  const K={emp:'erp-employees-v1',pay:'erp-payroll-v1',veh:'erp-vehicles-v1',move:'erp-vmove-v1'};
+  const PKEY='solar-projects-v1';
+  function lj(k){try{return JSON.parse(localStorage.getItem(k))||[];}catch(_){return [];}}
+  function sj(k,a){localStorage.setItem(k,JSON.stringify(a));}
+  function uid(){return 'id'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+  function today(){return new Date().toISOString().slice(0,10);}
+  function money(n){n=+n||0;return 'Rs '+n.toLocaleString('en-PK',{maximumFractionDigits:0});}
+  function v(id){const el=document.getElementById(id);return el?el.value:'';}
+  function projects(){try{return JSON.parse(localStorage.getItem(PKEY))||[];}catch(_){return [];}}
+  function projectNames(){return projects().map(p=>p.title||p.name||p.client||p.location||p.id).filter(Boolean);}
+
+  /* ===== 1) Override Employee form: add Bank fields ===== */
+  function patchEmployeeForm(){
+    if(!window.FORMS || !window.FORMS.employee) return setTimeout(patchEmployeeForm,300);
+    const old=window.FORMS.employee;
+    window.FORMS.employee={
+      title:old.title, key:old.key,
+      fields:(d)=>`
+        <label class="field"><span>Name</span><input id="f-name" value="${esc(d.name||'')}"/></label>
+        <label class="field"><span>Designation / Role</span><input id="f-role" value="${esc(d.role||'')}" placeholder="Technician, Manager…"/></label>
+        <label class="field"><span>Contact</span><input id="f-contact" value="${esc(d.contact||'')}"/></label>
+        <label class="field"><span>CNIC</span><input id="f-cnic" value="${esc(d.cnic||'')}"/></label>
+        <label class="field"><span>Monthly Salary (Rs)</span><input id="f-salary" type="number" value="${d.salary||''}"/></label>
+        <label class="field"><span>Joined</span><input id="f-joined" type="date" value="${d.joined||''}"/></label>
+        <label class="field"><span>Address</span><input id="f-address" value="${esc(d.address||'')}"/></label>
+        <div class="erp-section-title" style="grid-column:1/-1;margin-top:8px">🏦 Bank & Mobile Wallet Details</div>
+        <label class="field"><span>Bank Name</span><input id="f-bank" value="${esc(d.bank||'')}"/></label>
+        <label class="field"><span>Bank Account Number</span><input id="f-acct" value="${esc(d.acct||'')}"/></label>
+        <label class="field"><span>IBAN Number</span><input id="f-iban" value="${esc(d.iban||'')}"/></label>
+        <label class="field"><span>Easypaisa Number</span><input id="f-easy" value="${esc(d.easy||'')}"/></label>
+        <label class="field"><span>JazzCash Number</span><input id="f-jazz" value="${esc(d.jazz||'')}"/></label>`,
+      collect:()=>({
+        name:v('f-name'),role:v('f-role'),contact:v('f-contact'),cnic:v('f-cnic'),
+        salary:+v('f-salary')||0,joined:v('f-joined'),address:v('f-address'),
+        bank:v('f-bank'),acct:v('f-acct'),iban:v('f-iban'),easy:v('f-easy'),jazz:v('f-jazz')
+      })
+    };
+  }
+
+  /* ===== 2) Override Payroll form: full salary structure ===== */
+  function patchPayrollForm(){
+    if(!window.FORMS || !window.FORMS.payroll) return setTimeout(patchPayrollForm,300);
+    window.FORMS.payroll={
+      title:(id)=>id?'Edit Salary':'Pay Salary / Advance', key:K.pay,
+      fields:(d)=>{
+        const emps=lj(K.emp);
+        const monthDef=d.month||new Date().toISOString().slice(0,7);
+        return `
+        <label class="field"><span>Date</span><input type="date" id="f-date" value="${d.date||today()}"/></label>
+        <label class="field"><span>Salary Month</span><input type="month" id="f-month" value="${monthDef}"/></label>
+        <label class="field"><span>Employee</span><select id="f-employee">${emps.map(e=>`<option ${e.name===d.employee?'selected':''}>${esc(e.name)}</option>`).join('')||'<option>—</option>'}</select></label>
+        <label class="field"><span>Type</span><select id="f-kind">${['Salary','Advance','Bonus','Deduction','Overtime'].map(k=>`<option ${k===(d.kind||'Salary')?'selected':''}>${k}</option>`).join('')}</select></label>
+        <label class="field"><span>Basic Salary (Rs)</span><input id="f-basic" type="number" value="${d.basic||''}"/></label>
+        <label class="field"><span>Advance Taken (Rs)</span><input id="f-advance" type="number" value="${d.advance||0}"/></label>
+        <label class="field"><span>Bonus (Rs)</span><input id="f-bonus" type="number" value="${d.bonus||0}"/></label>
+        <label class="field"><span>Deductions (Rs)</span><input id="f-deduct" type="number" value="${d.deduct||0}"/></label>
+        <label class="field"><span>Paid Amount (Rs)</span><input id="f-amount" type="number" value="${d.amount||''}"/></label>
+        <label class="field"><span>Method</span><select id="f-method">${['Cash','Bank Transfer','Cheque','Easypaisa','JazzCash'].map(m=>`<option ${m===(d.method||'Cash')?'selected':''}>${m}</option>`).join('')}</select></label>
+        <label class="field" style="grid-column:1/-1"><span>Notes</span><textarea id="f-notes">${esc(d.notes||'')}</textarea></label>`;
+      },
+      collect:()=>{
+        const basic=+v('f-basic')||0,bonus=+v('f-bonus')||0,deduct=+v('f-deduct')||0,advance=+v('f-advance')||0;
+        const paid=+v('f-amount')||0;
+        const net=basic+bonus-deduct-advance;
+        return {date:v('f-date'),month:v('f-month'),employee:v('f-employee'),kind:v('f-kind'),
+          basic,bonus,deduct,advance,amount:paid,net,remaining:net-paid,
+          method:v('f-method'),notes:v('f-notes')};
+      }
+    };
+  }
+
+  /* ===== 3) Vehicle Movement Log form ===== */
+  function patchMovementForm(){
+    if(!window.FORMS) return setTimeout(patchMovementForm,300);
+    window.FORMS.movement={
+      title:(id)=>id?'Edit Movement':'Vehicle Movement Entry', key:K.move,
+      fields:(d)=>{
+        const veh=lj(K.veh); const sites=projectNames();
+        const locOpts=(val)=>sites.map(s=>`<option ${s===val?'selected':''}>${esc(s)}</option>`).join('');
+        return `
+        <label class="field"><span>Date</span><input type="date" id="f-date" value="${d.date||today()}"/></label>
+        <label class="field"><span>Vehicle / Bike Number</span>
+          <input id="f-vehicle" list="f-vehicle-list" value="${esc(d.vehicle||'')}" placeholder="e.g. LEB-1234"/>
+          <datalist id="f-vehicle-list">${veh.map(x=>`<option value="${esc(x.regNo)}">`).join('')}</datalist></label>
+        <label class="field"><span>Driver Name</span><input id="f-driver" value="${esc(d.driver||'')}"/></label>
+        <label class="field"><span>From Location</span>
+          <input id="f-from" list="f-loc-list" value="${esc(d.from||'')}" placeholder="Type or pick site"/></label>
+        <label class="field"><span>To Location</span>
+          <input id="f-to" list="f-loc-list" value="${esc(d.to||'')}" placeholder="Type or pick site"/></label>
+        <datalist id="f-loc-list">${sites.map(s=>`<option value="${esc(s)}">`).join('')}<option value="Office"><option value="Workshop"><option value="Warehouse"></datalist>
+        <label class="field"><span>Purpose</span><input id="f-purpose" value="${esc(d.purpose||'')}" placeholder="Material delivery, site visit…"/></label>
+        <label class="field"><span>Distance (km)</span><input id="f-dist" type="number" value="${d.dist||''}"/></label>
+        <label class="field"><span>Fuel Cost (Rs)</span><input id="f-fuel" type="number" value="${d.fuel||''}"/></label>
+        <label class="field" style="grid-column:1/-1"><span>Remarks</span><textarea id="f-remarks">${esc(d.remarks||'')}</textarea></label>`;
+      },
+      collect:()=>({date:v('f-date'),vehicle:v('f-vehicle'),driver:v('f-driver'),
+        from:v('f-from'),to:v('f-to'),purpose:v('f-purpose'),
+        dist:+v('f-dist')||0,fuel:+v('f-fuel')||0,remarks:v('f-remarks')}),
+      afterSave:(rec)=>{
+        // Auto-log fuel cost to vehicle expenses
+        if(rec.fuel>0){
+          const fuel=lj('erp-fuel-v1');
+          fuel.push({id:uid(),date:rec.date,vehicle:rec.vehicle,kind:'Fuel',
+            litres:0,odo:0,project:rec.to,amount:rec.fuel,
+            notes:'Movement: '+rec.from+' → '+rec.to+(rec.purpose?' ('+rec.purpose+')':'')});
+          sj('erp-fuel-v1',fuel);
+        }
+      }
+    };
+  }
+
+  /* ===== 4) Override erpExport: PDF + Excel + Print only (remove HTML) ===== */
+  function patchExport(){
+    if(typeof window.erpExport!=='function') return setTimeout(patchExport,300);
+    window.erpExport=(tblId,fmt,title)=>{
+      const t=document.getElementById(tblId); if(!t){alert('Nothing to export');return;}
+      const safeTitle=(title||'export').replace(/[^a-z0-9 _-]/gi,'_');
+      const stamp=new Date().toLocaleString();
+      const baseCSS=`body{font-family:Arial,sans-serif;padding:20px;color:#000}
+        h1{margin:0 0 6px;color:#b45309}.meta{color:#666;font-size:12px;margin-bottom:12px}
+        table{width:100%;border-collapse:collapse;font-size:12px}
+        th,td{border:1px solid #888;padding:6px 8px;text-align:left}
+        th{background:#fbbf24;color:#000}tr:nth-child(even) td{background:#fafafa}
+        .num{text-align:right}@media print{button{display:none}}`;
+      const doc=`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title>
+        <style>${baseCSS}</style></head><body>
+        <h1>Scope Solar — ${esc(title)}</h1><div class="meta">Generated: ${stamp}</div>
+        ${t.outerHTML}</body></html>`;
+      if(fmt==='csv'||fmt==='excel'||fmt==='xls'){
+        // Excel-readable: HTML table with .xls extension
+        const blob=new Blob(['\uFEFF'+doc],{type:'application/vnd.ms-excel'});
+        downloadBlob(blob,safeTitle+'.xls');
+      } else if(fmt==='pdf'){
+        const w=window.open('','_blank');
+        w.document.write(doc+'<script>window.onload=()=>{window.print();}<\/script>');
+        w.document.close();
+      } else if(fmt==='print'){
+        const w=window.open('','_blank');
+        w.document.write(doc+'<script>window.onload=()=>window.print()<\/script>');
+        w.document.close();
+      } else if(fmt==='html'){
+        // Redirect HTML requests to PDF
+        window.erpExport(tblId,'pdf',title);
+      }
+    };
+  }
+  function downloadBlob(blob,name){
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();
+    setTimeout(()=>{a.remove();URL.revokeObjectURL(url)},100);
+  }
+
+  /* ===== 5) Rewrite export bar UI in all tables: PDF / Excel / Print only ===== */
+  function fixExportBars(){
+    document.querySelectorAll('.erp-export-bar, .export-bar, [data-export-bar]').forEach(bar=>{
+      // generic — handled by rewriteBars below
+    });
+    // Find every button calling erpExport(..., 'html', ...) and either remove or convert to PDF
+    document.querySelectorAll('button,a').forEach(b=>{
+      const oc=b.getAttribute('onclick')||'';
+      if(/erpExport\([^)]*'html'/.test(oc)){
+        b.remove();
+      }
+      if(/download.*\.html|export.*HTML|HTML\s*Download/i.test(b.textContent||'')){
+        b.remove();
+      }
+    });
+    // Inject PDF/Excel/Print buttons next to remaining CSV buttons if missing
+    document.querySelectorAll('button[onclick*="erpExport"]').forEach(b=>{
+      const oc=b.getAttribute('onclick')||'';
+      const m=oc.match(/erpExport\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]+)['"]/);
+      if(!m) return;
+      const [_,tbl,fmt,title]=m;
+      const parent=b.parentElement; if(!parent || parent.dataset.exportFixed) return;
+      parent.dataset.exportFixed='1';
+      // Remove all existing export buttons in parent
+      [...parent.querySelectorAll('button[onclick*="erpExport"]')].forEach(x=>x.remove());
+      const mk=(label,f)=>{const x=document.createElement('button');x.className='btn ghost';x.style.marginLeft='4px';
+        x.textContent=label;x.setAttribute('onclick',`erpExport('${tbl}','${f}','${title}')`);return x;};
+      parent.appendChild(mk('📄 PDF','pdf'));
+      parent.appendChild(mk('📊 Excel','excel'));
+      parent.appendChild(mk('🖨️ Print','print'));
+    });
+  }
+
+  /* ===== 6) Salary Sheet generator (printable + downloadable) ===== */
+  window.openSalarySheet=function(monthFilter){
+    const emps=lj(K.emp), pays=lj(K.pay);
+    const month=monthFilter||new Date().toISOString().slice(0,7);
+    const monthPays=pays.filter(p=>(p.month||(p.date||'').slice(0,7))===month);
+    // Group by employee
+    const rows=emps.map(e=>{
+      const items=monthPays.filter(p=>p.employee===e.name);
+      const basic=items.reduce((s,p)=>s+(+p.basic||0),0)||(+e.salary||0);
+      const advance=items.filter(p=>p.kind==='Advance').reduce((s,p)=>s+(+p.amount||0),0)
+                  + items.reduce((s,p)=>s+(+p.advance||0),0);
+      const bonus=items.filter(p=>p.kind==='Bonus').reduce((s,p)=>s+(+p.amount||0),0)
+                  + items.reduce((s,p)=>s+(+p.bonus||0),0);
+      const deduct=items.filter(p=>p.kind==='Deduction').reduce((s,p)=>s+(+p.amount||0),0)
+                  + items.reduce((s,p)=>s+(+p.deduct||0),0);
+      const paid=items.filter(p=>p.kind==='Salary'||p.kind==='Overtime').reduce((s,p)=>s+(+p.amount||0),0);
+      const net=basic+bonus-deduct-advance;
+      const remaining=net-paid;
+      return {e,basic,advance,bonus,deduct,paid,net,remaining};
+    });
+    const monthLabel=new Date(month+'-01').toLocaleDateString('en-PK',{month:'long',year:'numeric'});
+    const html=`<!doctype html><html><head><meta charset="utf-8"><title>Salary Sheet ${monthLabel}</title>
+      <style>body{font-family:Arial,sans-serif;padding:20px;color:#000}
+      h1{margin:0;color:#b45309}.hdr{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #fbbf24;padding-bottom:10px;margin-bottom:14px}
+      .meta{font-size:12px;color:#555}
+      table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:18px}
+      th,td{border:1px solid #888;padding:5px 6px}th{background:#fbbf24;text-align:left}
+      .num{text-align:right;font-variant-numeric:tabular-nums}
+      tfoot td{background:#fef3c7;font-weight:700}
+      .pay-block{margin-top:10px;font-size:11px;color:#444}
+      .toolbar{margin-bottom:14px}.toolbar button{padding:8px 14px;margin-right:6px;border:1px solid #b45309;background:#fbbf24;cursor:pointer;border-radius:6px;font-weight:600}
+      @media print{.toolbar{display:none}}
+      </style></head><body>
+      <div class="toolbar">
+        <button onclick="window.print()">🖨️ Print / Save as PDF</button>
+        <button onclick="downloadXls()">📊 Download Excel</button>
+      </div>
+      <div class="hdr"><div><h1>Scope Solar — Salary Sheet</h1>
+        <div class="meta">Month: <b>${monthLabel}</b></div></div>
+        <div class="meta">Generated: ${new Date().toLocaleString()}</div></div>
+      <table id="sheet"><thead><tr>
+        <th>#</th><th>Employee</th><th>Designation</th><th>Month</th>
+        <th class="num">Basic</th><th class="num">Bonus</th><th class="num">Deductions</th>
+        <th class="num">Advance</th><th class="num">Net Payable</th>
+        <th class="num">Paid</th><th class="num">Remaining</th>
+        <th>Bank</th><th>Account / IBAN</th><th>Easypaisa</th><th>JazzCash</th>
+      </tr></thead><tbody>
+      ${rows.map((r,i)=>`<tr>
+        <td>${i+1}</td><td>${esc(r.e.name)}</td><td>${esc(r.e.role||'')}</td><td>${monthLabel}</td>
+        <td class="num">${r.basic.toLocaleString()}</td>
+        <td class="num">${r.bonus.toLocaleString()}</td>
+        <td class="num">${r.deduct.toLocaleString()}</td>
+        <td class="num">${r.advance.toLocaleString()}</td>
+        <td class="num"><b>${r.net.toLocaleString()}</b></td>
+        <td class="num">${r.paid.toLocaleString()}</td>
+        <td class="num" style="color:${r.remaining>0?'#b91c1c':'#15803d'}">${r.remaining.toLocaleString()}</td>
+        <td>${esc(r.e.bank||'')}</td>
+        <td>${esc(r.e.acct||'')}${r.e.iban?'<br><small>'+esc(r.e.iban)+'</small>':''}</td>
+        <td>${esc(r.e.easy||'')}</td>
+        <td>${esc(r.e.jazz||'')}</td>
+      </tr>`).join('')}
+      </tbody><tfoot><tr>
+        <td colspan="4">TOTAL</td>
+        <td class="num">${rows.reduce((s,r)=>s+r.basic,0).toLocaleString()}</td>
+        <td class="num">${rows.reduce((s,r)=>s+r.bonus,0).toLocaleString()}</td>
+        <td class="num">${rows.reduce((s,r)=>s+r.deduct,0).toLocaleString()}</td>
+        <td class="num">${rows.reduce((s,r)=>s+r.advance,0).toLocaleString()}</td>
+        <td class="num">${rows.reduce((s,r)=>s+r.net,0).toLocaleString()}</td>
+        <td class="num">${rows.reduce((s,r)=>s+r.paid,0).toLocaleString()}</td>
+        <td class="num">${rows.reduce((s,r)=>s+r.remaining,0).toLocaleString()}</td>
+        <td colspan="4"></td>
+      </tr></tfoot></table>
+      <div class="pay-block">Prepared by Accounts Dept. — Scope Solar Management System</div>
+      <script>
+        function downloadXls(){
+          const t=document.getElementById('sheet').outerHTML;
+          const html='<html><head><meta charset="utf-8"></head><body><h2>Salary Sheet ${monthLabel}</h2>'+t+'</body></html>';
+          const blob=new Blob(['\\uFEFF'+html],{type:'application/vnd.ms-excel'});
+          const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+          a.download='Salary_Sheet_${month}.xls';a.click();
+        }
+      <\/script></body></html>`;
+    const w=window.open('','_blank');w.document.write(html);w.document.close();
+  };
+
+  /* ===== 7) Add Salary Sheet button + Vehicle Movement section to ERP tabs ===== */
+  function injectExtras(){
+    // Salary Sheet button in payroll tab
+    if(window.tabs && window.tabs.payroll && !window.tabs._origPayroll){
+      window.tabs._origPayroll=window.tabs.payroll;
+      window.tabs.payroll=(el)=>{
+        window.tabs._origPayroll(el);
+        // Inject month picker + Salary Sheet button
+        const header=el.querySelector('.erp-row, .row, div');
+        if(el && !el.querySelector('#salary-sheet-bar')){
+          const bar=document.createElement('div');
+          bar.id='salary-sheet-bar';
+          bar.style.cssText='display:flex;gap:8px;align-items:center;margin:10px 0;padding:10px;background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;flex-wrap:wrap';
+          bar.innerHTML=`<b>📋 Professional Salary Sheet:</b>
+            <input type="month" id="ss-month" value="${new Date().toISOString().slice(0,7)}" style="padding:6px;border:1px solid #ccc;border-radius:4px"/>
+            <button class="btn" onclick="openSalarySheet(document.getElementById('ss-month').value)">📄 Generate Salary Sheet (PDF/Excel/Print)</button>`;
+          el.insertBefore(bar,el.firstChild.nextSibling||el.firstChild);
+        }
+      };
+    }
+    // Vehicle Movement Log in vehicles tab
+    if(window.tabs && window.tabs.vehicles && !window.tabs._origVehicles){
+      window.tabs._origVehicles=window.tabs.vehicles;
+      window.tabs.vehicles=(el)=>{
+        window.tabs._origVehicles(el);
+        if(el && !el.querySelector('#vmove-section')){
+          const moves=lj(K.move);
+          const sec=document.createElement('div');
+          sec.id='vmove-section';
+          sec.style.cssText='margin-top:18px';
+          sec.innerHTML=`
+            <div class="erp-section-title">🛣️ Vehicle Movement Log (Daily Entry)</div>
+            <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+              <button class="btn" onclick="erpOpen('movement')">+ Add Movement Entry</button>
+              <input id="vmove-search" placeholder="Search vehicle, driver, location…" oninput="erpFilter('vmove-tbl',this.value)" style="flex:1;min-width:200px;padding:6px;border:1px solid #ccc;border-radius:4px"/>
+              <button class="btn ghost" onclick="erpExport('vmove-tbl','pdf','Vehicle Movement Log')">📄 PDF</button>
+              <button class="btn ghost" onclick="erpExport('vmove-tbl','excel','Vehicle Movement Log')">📊 Excel</button>
+              <button class="btn ghost" onclick="erpExport('vmove-tbl','print','Vehicle Movement Log')">🖨️ Print</button>
+            </div>
+            <div style="overflow:auto"><table id="vmove-tbl" class="erp-table" style="width:100%;border-collapse:collapse">
+              <thead><tr style="background:#fbbf24">
+                <th style="padding:6px;border:1px solid #ddd">Date</th>
+                <th style="padding:6px;border:1px solid #ddd">Vehicle</th>
+                <th style="padding:6px;border:1px solid #ddd">Driver</th>
+                <th style="padding:6px;border:1px solid #ddd">From</th>
+                <th style="padding:6px;border:1px solid #ddd">To</th>
+                <th style="padding:6px;border:1px solid #ddd">Purpose</th>
+                <th style="padding:6px;border:1px solid #ddd">Distance (km)</th>
+                <th style="padding:6px;border:1px solid #ddd">Fuel (Rs)</th>
+                <th style="padding:6px;border:1px solid #ddd">Remarks</th>
+                <th style="padding:6px;border:1px solid #ddd"></th>
+              </tr></thead><tbody>
+              ${moves.length?moves.slice().reverse().map(m=>`<tr>
+                <td style="padding:5px;border:1px solid #eee">${esc(m.date)}</td>
+                <td style="padding:5px;border:1px solid #eee">${esc(m.vehicle)}</td>
+                <td style="padding:5px;border:1px solid #eee">${esc(m.driver)}</td>
+                <td style="padding:5px;border:1px solid #eee">${esc(m.from)}</td>
+                <td style="padding:5px;border:1px solid #eee">${esc(m.to)}</td>
+                <td style="padding:5px;border:1px solid #eee">${esc(m.purpose||'')}</td>
+                <td style="padding:5px;border:1px solid #eee;text-align:right">${m.dist||0}</td>
+                <td style="padding:5px;border:1px solid #eee;text-align:right">${(+m.fuel||0).toLocaleString()}</td>
+                <td style="padding:5px;border:1px solid #eee">${esc(m.remarks||'')}</td>
+                <td style="padding:5px;border:1px solid #eee"><button onclick="erpOpen('movement','${m.id}')">Edit</button></td>
+              </tr>`).join(''):'<tr><td colspan="10" style="padding:14px;text-align:center;color:#888">No movement entries yet. Click "+ Add Movement Entry"</td></tr>'}
+              </tbody></table></div>`;
+          el.appendChild(sec);
+        }
+      };
+    }
+  }
+
+  /* ===== 8) Instant User Save: refresh immediately on add ===== */
+  const _addUserPrev=window.addUser;
+  window.addUser=function(){
+    const r=_addUserPrev?_addUserPrev.apply(this,arguments):undefined;
+    // Immediate refresh, no 30ms delay
+    try{window.dispatchEvent(new CustomEvent('solar:data-changed',{detail:{kind:'users'}}));}catch(_){}
+    try{if(typeof window.__solarRefreshAll==='function') window.__solarRefreshAll();}catch(_){}
+    return r;
+  };
+
+  /* ===== 9) Performance: throttle storage event spam ===== */
+  // (handled by existing requestAnimationFrame in TRACKER_14)
+
+  /* ===== Init ===== */
+  function init(){
+    patchEmployeeForm(); patchPayrollForm(); patchMovementForm();
+    patchExport(); injectExtras();
+    // First export-bar sweep + on every ERP tab change
+    setTimeout(fixExportBars,500);
+    setInterval(fixExportBars,2000);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init);
+  else init();
+})();
+</script>
+
 </body></html>
