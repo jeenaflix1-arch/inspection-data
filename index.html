@@ -1753,11 +1753,7 @@ refreshNotifDot();
     : "";
   window.__API_BASE = API_BASE;
   const URL_    = API_BASE + "/api/public/jsonblob";
-  const KEYS = [
-    "solar-inspection-sites-v1","solar-users-v1","solar-projects-v1",
-    "solar-complaints-v1","solar-plans-v1","solar-inspectplans-v1",
-    "solar-team-msgs-v1","solar-notifs-v1","solar-presence-v1","solar-accounts-v1"
-  ];
+  const KEYS = []; // Superseded by TRACKER_13 reliable merge sync; disabled to prevent stale cloud overwrites.
   let suppress = false;
 
   async function pullNow(){
@@ -2507,6 +2503,27 @@ refreshNotifDot();
       if(k===TCLR){
         out[k] = Math.max(Number(cloud[k])||0, Number(local[k])||0);
         mt[k] = Math.max(cm[k]||0, lm[k]||0);
+        continue;
+      }
+
+      if(k==='solar-projects-v1'){
+        const a = Array.isArray(cloud[k])?cloud[k]:[];
+        const b = Array.isArray(local[k])?local[k]:[];
+        const same=(x,y)=>{
+          const n=s=>String(s||'').trim().toLowerCase().replace(/\s+/g,' ');
+          if(x&&y&&x.id&&y.id&&x.id===y.id) return true;
+          if(x&&y&&x.sr!=null&&y.sr!=null&&Number(x.sr)===Number(y.sr)) return true;
+          return x&&y&&n(x.client)===n(y.client)&&n(x.location)===n(y.location);
+        };
+        const merged=[];
+        [...a,...b].forEach(p=>{
+          if(!p||(!p.client&&!p.location)) return;
+          const i=merged.findIndex(x=>same(x,p));
+          if(i>=0) merged[i]={...merged[i],...p}; else merged.push(p);
+        });
+        merged.sort((x,y)=>(Number(x.sr)||0)-(Number(y.sr)||0));
+        out[k]=merged;
+        mt[k]=Math.max(cm[k]||0,lm[k]||0);
         continue;
       }
 
@@ -4563,33 +4580,126 @@ body.view-accounts-active .erp-tabs{position:sticky;top:60px;background:rgba(10,
 </style>
 <script>
 (function(){
+  const PKEY='solar-projects-v1';
+  const SITES_KEY='solar-inspection-sites-v1';
+  const BACKUP_KEY='solar-projects-backup-v1';
+  const PROTECTED_KEY='solar-projects-protected-v1';
+  const MTKEY='solar-mtimes-v1';
+
   /* ---------- Toast helper ---------- */
   function toast(msg, kind){
     let el = document.getElementById('ss-toast');
     if(!el){ el = document.createElement('div'); el.id='ss-toast'; document.body.appendChild(el); }
-    el.className = ''; el.classList.add(kind==='err'?'err':'');
-    el.innerHTML = '<span class="ic">'+(kind==='err'?'⚠️':'✅')+'</span><span>'+String(msg||'')+'</span>';
+    el.className = ''; if(kind==='err') el.classList.add('err');
+      el.innerHTML = '<span class="ic">'+(kind==='err'?'⚠️':(kind==='info'?'⏳':'✅'))+'</span><span>'+String(msg||'')+'</span>';
     requestAnimationFrame(()=>el.classList.add('show'));
     clearTimeout(el._t); el._t = setTimeout(()=>el.classList.remove('show'), 2600);
   }
   window.ssToast = toast;
 
+  function readArray(key){
+    try{ const raw=localStorage.getItem(key); if(raw==null || raw==='') return []; const arr=JSON.parse(raw); return Array.isArray(arr)?arr:[]; }catch(_){ return []; }
+  }
+  function nativeWrite(key, value){
+    try{ Storage.prototype.setItem.call(localStorage, key, value); }
+    catch(e){
+      try{ Storage.prototype.removeItem.call(localStorage, 'solar-presence-v1'); Storage.prototype.setItem.call(localStorage, key, value); }
+      catch(err){ throw err || e; }
+    }
+  }
+  function bumpSyncKey(key){
+    try{ const m=JSON.parse(localStorage.getItem(MTKEY)||'{}'); m[key]=Date.now(); nativeWrite(MTKEY, JSON.stringify(m)); }catch(_){ }
+  }
+  function norm(s){ return String(s||'').trim().toLowerCase().replace(/\s+/g,' '); }
+  function projectSig(p){ return p && p.id ? 'id:'+p.id : (p && p.sr!=null ? 'sr:'+p.sr : 'site:'+norm((p&&p.client)||'')+'|'+norm((p&&p.location)||'')); }
+  function sameProject(a,b){
+    if(!a || !b) return false;
+    if(a.id && b.id && a.id===b.id) return true;
+    if(a.sr!=null && b.sr!=null && Number(a.sr)===Number(b.sr)) return true;
+    return norm(a.client)===norm(b.client) && norm(a.location)===norm(b.location);
+  }
+  function mergeProjects(base, extra){
+    const out = Array.isArray(base) ? base.slice() : [];
+    (Array.isArray(extra)?extra:[]).forEach(p=>{
+      if(!p || (!p.client && !p.location)) return;
+      const i = out.findIndex(x=>sameProject(x,p));
+      if(i>=0) out[i] = {...out[i], ...p}; else out.push(p);
+    });
+    out.sort((a,b)=>(Number(a.sr)||0)-(Number(b.sr)||0));
+    return out;
+  }
+  function loadProjectDatabase(){
+    let arr = readArray(PKEY);
+    const protectedRows = readArray(PROTECTED_KEY);
+    if(!arr.length && !localStorage.getItem(PKEY)) arr = (typeof PROJECTS_SEED!=='undefined' ? PROJECTS_SEED.slice() : []);
+    return mergeProjects(arr, protectedRows);
+  }
+  function protectProject(project){
+    const protectedRows = mergeProjects(readArray(PROTECTED_KEY), [project]);
+    nativeWrite(PROTECTED_KEY, JSON.stringify(protectedRows));
+  }
+  function writeProjectDatabase(arr, expected){
+    const clean = mergeProjects([], arr).map((p,i)=>({sr:Number(p.sr)||i+1, client:String(p.client||'').trim(), location:String(p.location||'').trim(), capacity:String(p.capacity||'-').trim()||'-', ...(p.id?{id:p.id}:{})}));
+    nativeWrite(PKEY, JSON.stringify(clean));
+    nativeWrite(BACKUP_KEY, JSON.stringify({savedAt:new Date().toISOString(), projects:clean}));
+    bumpSyncKey(PKEY);
+    if(expected) protectProject(expected);
+    const verified = readArray(PKEY);
+    if(!verified.length && clean.length) throw new Error('Project database verification failed: empty readback');
+    if(expected && !verified.some(p=>sameProject(p, expected))) throw new Error('Project database verification failed: project missing after readback');
+    return verified;
+  }
+  function repairProtectedProjects(){
+    const repaired = mergeProjects(readArray(PKEY), readArray(PROTECTED_KEY));
+    if(JSON.stringify(repaired)!==JSON.stringify(readArray(PKEY))){
+      nativeWrite(PKEY, JSON.stringify(repaired));
+      return true;
+    }
+    return false;
+  }
+  function syncProjectToInspection(project){
+    const nm = String((project&&project.location)||project.client||'').trim();
+    if(!nm) return;
+    let siteList = readArray(SITES_KEY);
+    if(!siteList.length && typeof SEED!=='undefined') siteList = JSON.parse(JSON.stringify(SEED));
+    const found = siteList.find(s=>norm(s.name)===norm(nm));
+    if(!found){
+      siteList.push({id:'proj_'+(project.id||project.sr||Date.now())+'_'+Date.now(), name:nm, installDate:null, inspections:Array.from({length:9},()=>({date:null,noNeed:false}))});
+    }
+    nativeWrite(SITES_KEY, JSON.stringify(siteList));
+    bumpSyncKey(SITES_KEY);
+    try{ if(typeof sites!=='undefined') sites = siteList; }catch(_){ }
+  }
+  function refreshProjectModules(){
+    try{ repairProtectedProjects(); }catch(_){ }
+    try{ if(typeof syncSitesWithProjects==='function') syncSitesWithProjects(); }catch(_){ }
+    try{ if(typeof sites!=='undefined') sites = readArray(SITES_KEY); }catch(_){ }
+    try{ if(typeof renderProjects==='function') renderProjects(); }catch(_){ }
+    try{ if(typeof render==='function') render(); }catch(_){ }
+    try{ if(typeof renderHome==='function') renderHome(); }catch(_){ }
+    try{ if(typeof renderAccounts==='function') renderAccounts(); }catch(_){ }
+    try{ if(typeof renderPlans==='function') renderPlans(); }catch(_){ }
+    try{ if(typeof renderInspectPlans==='function') renderInspectPlans(); }catch(_){ }
+    try{ window.dispatchEvent(new CustomEvent('solar:data-changed',{detail:{kind:'projects'}})); }catch(_){ }
+    try{ if(typeof window.__solarRefreshAll==='function') window.__solarRefreshAll(); }catch(_){ }
+  }
+  async function pushVerifiedDatabase(){
+    try{ if(typeof window.__pushNow==='function') await Promise.race([Promise.resolve(window.__pushNow()), new Promise(res=>setTimeout(res,2500))]); }catch(_){ }
+  }
+
   /* ---------- Fix loadProjects reseed-on-empty bug ----------
      Original treated [] as "missing" and overwrote with SEED, wiping deletions
      and making it look like new projects didn't persist on some flows. */
   try{
-    const PKEY='solar-projects-v1';
     const _load = window.loadProjects;
     window.loadProjects = function(){
       try{
-        const raw = localStorage.getItem(PKEY);
-        if(raw !== null){
-          const arr = JSON.parse(raw);
-          if(Array.isArray(arr)) return arr; // honor empty arrays
-        }
+        const arr = loadProjectDatabase();
+        if(Array.isArray(arr)) return arr; // honor empty arrays and protected saved projects
       }catch(_){}
       return _load ? _load.apply(this, arguments) : [];
     };
+    window.saveProjects = function(a){ writeProjectDatabase(Array.isArray(a)?a:[], null); };
   }catch(_){}
 
   /* ---------- Accounts: full-width body class + auto-close sidebar ---------- */
@@ -4608,31 +4718,49 @@ body.view-accounts-active .erp-tabs{position:sticky;top:60px;background:rgba(10,
   // Initial paint
   setTimeout(()=>applyViewClass(window.__currentView||location.hash.slice(1)||'home'), 50);
 
-  /* ---------- Project creation: validate → loader → save → success → sync ---------- */
+  /* ---------- Project creation: validate → loader → verified database save → success → sync ---------- */
   function projectAddUX(){
-    const _doAdd = window.doAddProject;
-    if(typeof _doAdd !== 'function') return setTimeout(projectAddUX, 300);
+    if(typeof window.doAddProject !== 'function') return setTimeout(projectAddUX, 300);
 
     window.doAddProject = function(){
       const btn = document.getElementById('ap-proj-save');
       const client = (document.getElementById('ap-client')?.value||'').trim();
       const loc    = (document.getElementById('ap-location')?.value||'').trim();
+      const capacity = (document.getElementById('ap-cap')?.value||'').trim() || '-';
       if(!client){ toast('Client name is required','err'); document.getElementById('ap-client')?.focus(); return; }
       if(!loc)   { toast('Project location is required','err'); document.getElementById('ap-location')?.focus(); return; }
-      if(btn){ if(btn.dataset.busy==='1') return; btn.dataset.busy='1'; btn.classList.add('is-loading'); btn.textContent='Saving'; }
+      if(btn){ if(btn.dataset.busy==='1') return; btn.dataset.busy='1'; btn.classList.add('is-loading'); btn.textContent='Saving Project...'; }
+      toast('Saving Project...','info');
 
       // Defer one frame so the loader is visible even on very fast saves
-      requestAnimationFrame(()=>{
+      requestAnimationFrame(async ()=>{
         try{
-          _doAdd();                               // original: validates, saves, syncs sites, renders
-          try{ if(typeof syncSitesWithProjects==='function') syncSitesWithProjects(); }catch(_){}
-          // Fan-out refresh across every module (Dashboard, ERP, Inspection, Reports, Analytics, Finance, Material…)
-          try{ window.dispatchEvent(new CustomEvent('solar:data-changed',{detail:{kind:'projects'}})); }catch(_){}
-          try{ if(typeof window.__solarRefreshAll==='function') window.__solarRefreshAll(); }catch(_){}
-          toast('Project Added Successfully');
+          let arr = loadProjectDatabase();
+          const title = (document.getElementById('ap-proj-title')?.textContent||'');
+          const editMatch = title.match(/#\s*(\d+)/);
+          const editSr = editMatch ? Number(editMatch[1]) : null;
+          let project;
+          if(editSr){
+            const i = arr.findIndex(p=>Number(p.sr)===editSr);
+            if(i<0) throw new Error('Project database verification failed: project not found for edit');
+            project = {...arr[i], client, location:loc, capacity, id:arr[i].id||('proj_'+editSr)};
+            arr[i] = project;
+          }else{
+            const sr = arr.reduce((m,p)=>Math.max(m,Number(p.sr)||0),0)+1;
+            project = {sr, client, location:loc, capacity, id:'proj_'+Date.now().toString(36)+Math.random().toString(36).slice(2,7)};
+            arr.push(project);
+          }
+          writeProjectDatabase(arr, project);
+          syncProjectToInspection(project);
+          refreshProjectModules();
+          await pushVerifiedDatabase();
+          repairProtectedProjects();
+          document.getElementById('m-addproj')?.classList.remove('open');
+          const titleEl=document.getElementById('ap-proj-title'); if(titleEl) titleEl.textContent='Add Project';
+          toast('Project Saved Successfully');
         }catch(err){
           console.error(err);
-          toast('Could not save project','err');
+          toast('Project storage is blocked or full. Please free browser storage and try again.','err');
         }finally{
           if(btn){ btn.dataset.busy='0'; btn.classList.remove('is-loading'); btn.textContent='Add'; }
         }
@@ -4640,6 +4768,8 @@ body.view-accounts-active .erp-tabs{position:sticky;top:60px;background:rgba(10,
     };
   }
   projectAddUX();
+
+  setInterval(()=>{ try{ if(repairProtectedProjects()) refreshProjectModules(); }catch(_){ } }, 1500);
 
   /* ---------- Real-time safety net: storage event + visibility refresh ----------
      Complements TRACKER_14. Re-broadcasts when any project-related key changes. */
