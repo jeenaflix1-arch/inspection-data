@@ -2065,9 +2065,10 @@ refreshNotifDot();
     };
   }
 
-  // Run perms + sync on first load after a short delay
+  // Run perms on first load after a short delay. Project Details is now the
+  // only source for projects, so never recreate projects from inspection rows.
   function init(){
-    try{ syncProjectsFromInspections(); }catch(_){}
+    try{ window.syncProjectsFromInspections = function(){}; }catch(_){}
     try{ applyPerms(); }catch(_){}
     // If already authenticated, jump to home page (default landing)
     try{
@@ -2382,7 +2383,8 @@ refreshNotifDot();
     "solar-inspection-sites-v1","solar-users-v1","solar-projects-v1",
     "solar-complaints-v1","solar-plans-v1","solar-inspectplans-v1",
     "solar-team-msgs-v1","solar-notifs-v1","solar-presence-v1","solar-accounts-v1",
-    "solar-users-deleted-v1","solar-team-cleared-at-v1","solar-team-hidden-v1"
+    "solar-users-deleted-v1","solar-team-cleared-at-v1","solar-team-hidden-v1",
+    "solar-project-reset-epoch-v1"
   ];
   const TKEY = "solar-team-msgs-v1";
   const UKEY = "solar-users-v1";
@@ -2509,6 +2511,11 @@ refreshNotifDot();
       if(k==='solar-projects-v1'){
         const a = Array.isArray(cloud[k])?cloud[k]:[];
         const b = Array.isArray(local[k])?local[k]:[];
+        const cr = Number(cloud['solar-project-reset-epoch-v1'])||0;
+        const lr = Number(local['solar-project-reset-epoch-v1'])||0;
+        const cMt = cm[k]||0, lMt = lm[k]||0;
+        if(lr>cr){ out[k]=b; mt[k]=lMt; continue; }
+        if(cr>lr){ out[k]=a; mt[k]=cMt; continue; }
         const same=(x,y)=>{
           const n=s=>String(s||'').trim().toLowerCase().replace(/\s+/g,' ');
           if(x&&y&&x.id&&y.id&&x.id===y.id) return true;
@@ -2525,6 +2532,14 @@ refreshNotifDot();
         out[k]=merged;
         mt[k]=Math.max(cm[k]||0,lm[k]||0);
         continue;
+      }
+
+      if(k==='solar-inspection-sites-v1'){
+        const cr = Number(cloud['solar-project-reset-epoch-v1'])||0;
+        const lr = Number(local['solar-project-reset-epoch-v1'])||0;
+        const cMt = cm[k]||0, lMt = lm[k]||0;
+        if(lr>cr){ out[k]=Array.isArray(local[k])?local[k]:[]; mt[k]=lMt; continue; }
+        if(cr>lr){ out[k]=Array.isArray(cloud[k])?cloud[k]:[]; mt[k]=cMt; continue; }
       }
 
       const cMt = cm[k]||0, lMt = lm[k]||0;
@@ -4577,6 +4592,9 @@ body.view-accounts-active .erp-tabs{position:sticky;top:60px;background:rgba(10,
 .btn.is-loading{opacity:.75;pointer-events:none;position:relative}
 .btn.is-loading::after{content:"";display:inline-block;width:14px;height:14px;margin-left:8px;border:2px solid rgba(26,18,8,.3);border-top-color:#1a1208;border-radius:50%;animation:ssSpin .7s linear infinite;vertical-align:-3px}
 @keyframes ssSpin{to{transform:rotate(360deg)}}
+.sync-loading{position:relative;min-height:88px}
+.sync-loading::before{content:"Fetching updated project data...";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:10px;background:rgba(10,23,48,.78);backdrop-filter:blur(4px);color:#f8fafc;font-weight:800;z-index:9;border-radius:12px}
+.sync-loading::after{content:"";position:absolute;top:calc(50% - 26px);left:calc(50% - 150px);width:16px;height:16px;border:2px solid rgba(248,250,252,.35);border-top-color:#fbbf24;border-radius:50%;animation:ssSpin .7s linear infinite;z-index:10}
 </style>
 <script>
 (function(){
@@ -4584,6 +4602,8 @@ body.view-accounts-active .erp-tabs{position:sticky;top:60px;background:rgba(10,
   const SITES_KEY='solar-inspection-sites-v1';
   const BACKUP_KEY='solar-projects-backup-v1';
   const PROTECTED_KEY='solar-projects-protected-v1';
+  const RESET_KEY='solar-project-reset-epoch-v1';
+  const RESET_APPLIED_KEY='solar-project-reset-applied-v7-6';
   const MTKEY='solar-mtimes-v1';
 
   /* ---------- Toast helper ---------- */
@@ -4628,10 +4648,16 @@ body.view-accounts-active .erp-tabs{position:sticky;top:60px;background:rgba(10,
     out.sort((a,b)=>(Number(a.sr)||0)-(Number(b.sr)||0));
     return out;
   }
+  function hasReset(){ return !!localStorage.getItem(RESET_KEY); }
+  function emptySiteForProject(project){
+    const nm = String((project&&project.location)||project.client||'').trim();
+    if(!nm) return null;
+    return {id:'proj_'+(project.id||project.sr||Date.now())+'_'+Date.now(), name:nm, installDate:null, inspections:Array.from({length:9},()=>({date:null,noNeed:false}))};
+  }
   function loadProjectDatabase(){
     let arr = readArray(PKEY);
     const protectedRows = readArray(PROTECTED_KEY);
-    if(!arr.length && !localStorage.getItem(PKEY)) arr = (typeof PROJECTS_SEED!=='undefined' ? PROJECTS_SEED.slice() : []);
+    if(!arr.length && !localStorage.getItem(PKEY) && !hasReset()) arr = (typeof PROJECTS_SEED!=='undefined' ? PROJECTS_SEED.slice() : []);
     return mergeProjects(arr, protectedRows);
   }
   function protectProject(project){
@@ -4658,22 +4684,33 @@ body.view-accounts-active .erp-tabs{position:sticky;top:60px;background:rgba(10,
     return false;
   }
   function syncProjectToInspection(project){
-    const nm = String((project&&project.location)||project.client||'').trim();
-    if(!nm) return;
+    const site = emptySiteForProject(project);
+    if(!site) return;
+    const nm = site.name;
     let siteList = readArray(SITES_KEY);
-    if(!siteList.length && typeof SEED!=='undefined') siteList = JSON.parse(JSON.stringify(SEED));
+    if(!siteList.length && typeof SEED!=='undefined' && !hasReset()) siteList = JSON.parse(JSON.stringify(SEED));
     const found = siteList.find(s=>norm(s.name)===norm(nm));
-    if(!found){
-      siteList.push({id:'proj_'+(project.id||project.sr||Date.now())+'_'+Date.now(), name:nm, installDate:null, inspections:Array.from({length:9},()=>({date:null,noNeed:false}))});
-    }
+    if(!found) siteList.push(site);
     nativeWrite(SITES_KEY, JSON.stringify(siteList));
     bumpSyncKey(SITES_KEY);
     try{ if(typeof sites!=='undefined') sites = siteList; }catch(_){ }
   }
+  function syncAllProjectsToInspection(){
+    const next=[];
+    const seen=new Set();
+    loadProjectDatabase().forEach(p=>{
+      const site=emptySiteForProject(p); if(!site) return;
+      const key=norm(site.name); if(seen.has(key)) return;
+      seen.add(key); next.push(site);
+    });
+    nativeWrite(SITES_KEY, JSON.stringify(next));
+    bumpSyncKey(SITES_KEY);
+    try{ if(typeof sites!=='undefined') sites = next; }catch(_){ }
+    return next;
+  }
   function refreshProjectModules(){
     try{ repairProtectedProjects(); }catch(_){ }
-    try{ if(typeof syncSitesWithProjects==='function') syncSitesWithProjects(); }catch(_){ }
-    try{ if(typeof sites!=='undefined') sites = readArray(SITES_KEY); }catch(_){ }
+    try{ syncAllProjectsToInspection(); }catch(_){ }
     try{ if(typeof renderProjects==='function') renderProjects(); }catch(_){ }
     try{ if(typeof render==='function') render(); }catch(_){ }
     try{ if(typeof renderHome==='function') renderHome(); }catch(_){ }
@@ -4683,8 +4720,32 @@ body.view-accounts-active .erp-tabs{position:sticky;top:60px;background:rgba(10,
     try{ window.dispatchEvent(new CustomEvent('solar:data-changed',{detail:{kind:'projects'}})); }catch(_){ }
     try{ if(typeof window.__solarRefreshAll==='function') window.__solarRefreshAll(); }catch(_){ }
   }
+  window.syncSitesWithProjects = syncAllProjectsToInspection;
   async function pushVerifiedDatabase(){
     try{ if(typeof window.__pushNow==='function') await Promise.race([Promise.resolve(window.__pushNow()), new Promise(res=>setTimeout(res,2500))]); }catch(_){ }
+  }
+
+  function clearExistingProjectData(){
+    const stamp = String(Date.now());
+    nativeWrite(RESET_KEY, stamp);
+    nativeWrite(PKEY, '[]');
+    nativeWrite(PROTECTED_KEY, '[]');
+    nativeWrite(BACKUP_KEY, JSON.stringify({savedAt:new Date().toISOString(), projects:[], reset:true}));
+    nativeWrite(SITES_KEY, '[]');
+    bumpSyncKey(RESET_KEY); bumpSyncKey(PKEY); bumpSyncKey(SITES_KEY);
+    try{ if(typeof sites!=='undefined') sites = []; }catch(_){ }
+    try{ window.syncProjectsFromInspections = function(){}; }catch(_){ }
+  }
+  window.resetProjectData = function(){
+    if(!confirm('Clear all existing Project Details and Inspection Records data?')) return;
+    clearExistingProjectData();
+    nativeWrite(RESET_APPLIED_KEY, '1');
+    refreshProjectModules();
+    toast('Project data reset complete');
+  };
+  if(!localStorage.getItem(RESET_APPLIED_KEY)){
+    clearExistingProjectData();
+    nativeWrite(RESET_APPLIED_KEY, '1');
   }
 
   /* ---------- Fix loadProjects reseed-on-empty bug ----------
@@ -4706,11 +4767,18 @@ body.view-accounts-active .erp-tabs{position:sticky;top:60px;background:rgba(10,
   function applyViewClass(name){
     document.body.classList.toggle('view-accounts-active', name==='accounts');
   }
+  function showSyncLoading(target){
+    const el = target==='accounts' ? document.getElementById('erp-body') : document.getElementById('view-'+target);
+    if(!el) return;
+    el.classList.add('sync-loading');
+    setTimeout(()=>el.classList.remove('sync-loading'), 650);
+  }
   const _showView = window.showView;
   if(typeof _showView === 'function'){
     window.showView = function(name){
       const r = _showView.apply(this, arguments);
       try{ applyViewClass(name); }catch(_){}
+      try{ if(['inspections','accounts','projects','home'].includes(name)) showSyncLoading(name); }catch(_){}
       try{ if(typeof closeSidebar==='function') closeSidebar(); }catch(_){}
       return r;
     };
@@ -4751,7 +4819,7 @@ body.view-accounts-active .erp-tabs{position:sticky;top:60px;background:rgba(10,
             arr.push(project);
           }
           writeProjectDatabase(arr, project);
-          syncProjectToInspection(project);
+          syncAllProjectsToInspection();
           refreshProjectModules();
           await pushVerifiedDatabase();
           repairProtectedProjects();
@@ -4770,6 +4838,10 @@ body.view-accounts-active .erp-tabs{position:sticky;top:60px;background:rgba(10,
   projectAddUX();
 
   setInterval(()=>{ try{ if(repairProtectedProjects()) refreshProjectModules(); }catch(_){ } }, 1500);
+  setInterval(async ()=>{
+    try{ if(typeof window.__pullNow==='function') await window.__pullNow(); }catch(_){ }
+    try{ refreshProjectModules(); }catch(_){ }
+  }, 30000);
 
   /* ---------- Real-time safety net: storage event + visibility refresh ----------
      Complements TRACKER_14. Re-broadcasts when any project-related key changes. */
