@@ -4544,4 +4544,115 @@ table{width:100%;border-collapse:collapse;margin:8px 0}td,th{border:1px solid #d
 })();
 </script>
 
+<!-- ============ TRACKER_16: Accounts full-width + Project create UX + System-wide sync hardening ============ -->
+<style>
+/* Accounts module uses full available workspace */
+body.view-accounts-active main{max-width:none;padding:14px}
+body.view-accounts-active #view-accounts .erp-panel{border-radius:14px}
+body.view-accounts-active .erp-tabs{position:sticky;top:60px;background:rgba(10,23,48,.96);backdrop-filter:blur(8px);z-index:5;margin:0 -14px 14px;padding:10px 14px;border-bottom:1px solid var(--border)}
+@media(max-width:760px){body.view-accounts-active main{padding:8px}}
+/* Toast */
+#ss-toast{position:fixed;top:18px;left:50%;transform:translate(-50%,-80px);background:linear-gradient(135deg,#10b981,#059669);color:#fff;padding:14px 22px;border-radius:14px;font-weight:700;box-shadow:0 12px 40px rgba(16,185,129,.45);z-index:9999;opacity:0;transition:transform .35s cubic-bezier(.2,.9,.3,1.2),opacity .25s;display:flex;align-items:center;gap:10px;max-width:90vw}
+#ss-toast.show{transform:translate(-50%,0);opacity:1}
+#ss-toast.err{background:linear-gradient(135deg,#ef4444,#b91c1c);box-shadow:0 12px 40px rgba(239,68,68,.45)}
+#ss-toast .ic{font-size:20px}
+/* Inline button spinner */
+.btn.is-loading{opacity:.75;pointer-events:none;position:relative}
+.btn.is-loading::after{content:"";display:inline-block;width:14px;height:14px;margin-left:8px;border:2px solid rgba(26,18,8,.3);border-top-color:#1a1208;border-radius:50%;animation:ssSpin .7s linear infinite;vertical-align:-3px}
+@keyframes ssSpin{to{transform:rotate(360deg)}}
+</style>
+<script>
+(function(){
+  /* ---------- Toast helper ---------- */
+  function toast(msg, kind){
+    let el = document.getElementById('ss-toast');
+    if(!el){ el = document.createElement('div'); el.id='ss-toast'; document.body.appendChild(el); }
+    el.className = ''; el.classList.add(kind==='err'?'err':'');
+    el.innerHTML = '<span class="ic">'+(kind==='err'?'⚠️':'✅')+'</span><span>'+String(msg||'')+'</span>';
+    requestAnimationFrame(()=>el.classList.add('show'));
+    clearTimeout(el._t); el._t = setTimeout(()=>el.classList.remove('show'), 2600);
+  }
+  window.ssToast = toast;
+
+  /* ---------- Fix loadProjects reseed-on-empty bug ----------
+     Original treated [] as "missing" and overwrote with SEED, wiping deletions
+     and making it look like new projects didn't persist on some flows. */
+  try{
+    const PKEY='solar-projects-v1';
+    const _load = window.loadProjects;
+    window.loadProjects = function(){
+      try{
+        const raw = localStorage.getItem(PKEY);
+        if(raw !== null){
+          const arr = JSON.parse(raw);
+          if(Array.isArray(arr)) return arr; // honor empty arrays
+        }
+      }catch(_){}
+      return _load ? _load.apply(this, arguments) : [];
+    };
+  }catch(_){}
+
+  /* ---------- Accounts: full-width body class + auto-close sidebar ---------- */
+  function applyViewClass(name){
+    document.body.classList.toggle('view-accounts-active', name==='accounts');
+  }
+  const _showView = window.showView;
+  if(typeof _showView === 'function'){
+    window.showView = function(name){
+      const r = _showView.apply(this, arguments);
+      try{ applyViewClass(name); }catch(_){}
+      try{ if(typeof closeSidebar==='function') closeSidebar(); }catch(_){}
+      return r;
+    };
+  }
+  // Initial paint
+  setTimeout(()=>applyViewClass(window.__currentView||location.hash.slice(1)||'home'), 50);
+
+  /* ---------- Project creation: validate → loader → save → success → sync ---------- */
+  function projectAddUX(){
+    const _doAdd = window.doAddProject;
+    if(typeof _doAdd !== 'function') return setTimeout(projectAddUX, 300);
+
+    window.doAddProject = function(){
+      const btn = document.getElementById('ap-proj-save');
+      const client = (document.getElementById('ap-client')?.value||'').trim();
+      const loc    = (document.getElementById('ap-location')?.value||'').trim();
+      if(!client){ toast('Client name is required','err'); document.getElementById('ap-client')?.focus(); return; }
+      if(!loc)   { toast('Project location is required','err'); document.getElementById('ap-location')?.focus(); return; }
+      if(btn){ if(btn.dataset.busy==='1') return; btn.dataset.busy='1'; btn.classList.add('is-loading'); btn.textContent='Saving'; }
+
+      // Defer one frame so the loader is visible even on very fast saves
+      requestAnimationFrame(()=>{
+        try{
+          _doAdd();                               // original: validates, saves, syncs sites, renders
+          try{ if(typeof syncSitesWithProjects==='function') syncSitesWithProjects(); }catch(_){}
+          // Fan-out refresh across every module (Dashboard, ERP, Inspection, Reports, Analytics, Finance, Material…)
+          try{ window.dispatchEvent(new CustomEvent('solar:data-changed',{detail:{kind:'projects'}})); }catch(_){}
+          try{ if(typeof window.__solarRefreshAll==='function') window.__solarRefreshAll(); }catch(_){}
+          toast('Project Added Successfully');
+        }catch(err){
+          console.error(err);
+          toast('Could not save project','err');
+        }finally{
+          if(btn){ btn.dataset.busy='0'; btn.classList.remove('is-loading'); btn.textContent='Add'; }
+        }
+      });
+    };
+  }
+  projectAddUX();
+
+  /* ---------- Real-time safety net: storage event + visibility refresh ----------
+     Complements TRACKER_14. Re-broadcasts when any project-related key changes. */
+  const WATCH = ['solar-projects-v1','solar-sites-v1','solar-users-v1'];
+  window.addEventListener('storage', e=>{
+    if(!e.key) return;
+    if(WATCH.includes(e.key) || String(e.key).startsWith('erp-')){
+      try{ if(typeof window.__solarRefreshAll==='function') window.__solarRefreshAll(); }catch(_){}
+    }
+  });
+  document.addEventListener('visibilitychange', ()=>{
+    if(!document.hidden){ try{ if(typeof window.__solarRefreshAll==='function') window.__solarRefreshAll(); }catch(_){} }
+  });
+})();
+</script>
 </body></html>
