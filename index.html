@@ -4496,4 +4496,52 @@ table{width:100%;border-collapse:collapse;margin:8px 0}td,th{border:1px solid #d
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init); else init();
 })();
 </script>
+
+<script>
+/* ============ TRACKER_18: Visible Salary Sheet buttons in Payroll & Employees tabs ============ */
+(function(){
+  function monthNow(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
+  function ensurePayrollBar(){
+    var hdrs=document.querySelectorAll('h1,h2,h3');
+    hdrs.forEach(function(h){
+      var t=(h.textContent||'').toLowerCase();
+      if((t.indexOf('payroll')>=0||t.indexOf('salary')>=0) && !h.dataset._t18){
+        h.dataset._t18='1';
+        var bar=document.createElement('div');
+        bar.style.cssText='margin:10px 0;padding:12px;background:linear-gradient(90deg,#fef3c7,#fde68a);border:2px solid #92400e;border-radius:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;';
+        bar.innerHTML='<b style="color:#92400e;font-size:15px;margin-right:8px">📋 Salary Sheet:</b>'+
+          '<input type="month" id="t18-month" value="'+monthNow()+'" style="padding:6px;border:1px solid #92400e;border-radius:6px">'+
+          '<button id="t18-view" style="padding:8px 14px;background:#92400e;color:#fff;border:0;border-radius:6px;font-weight:700;cursor:pointer">📄 View / Print / PDF</button>'+
+          '<button id="t18-xls" style="padding:8px 14px;background:#15803d;color:#fff;border:0;border-radius:6px;font-weight:700;cursor:pointer">📊 Download Excel</button>'+
+          '<span style="color:#555;font-size:12px;margin-left:6px">Auto-includes Basic, Advance, Bonus, Deductions, Paid, Remaining, Net + Bank/Easypaisa/JazzCash details.</span>';
+        h.parentNode.insertBefore(bar,h.nextSibling);
+        bar.querySelector('#t18-view').onclick=function(){var m=document.getElementById('t18-month').value;(window.openSalarySheet||function(){alert('Salary Sheet engine missing')})(m);};
+        bar.querySelector('#t18-xls').onclick=function(){var m=document.getElementById('t18-month').value;(window.downloadSalarySheetExcel||function(){alert('Excel engine missing')})(m);};
+      }
+    });
+  }
+  function addEmpButtons(){
+    document.querySelectorAll('table tr[data-id],table tr[data-emp],table tbody tr').forEach(function(tr){
+      if(tr.dataset._t18b)return;
+      var firstCell=tr.querySelector('td'); if(!firstCell)return;
+      var name=(firstCell.textContent||'').trim(); if(!name)return;
+      // only apply to rows inside an employees-looking table
+      var tbl=tr.closest('table'); if(!tbl)return;
+      var heads=Array.from(tbl.querySelectorAll('thead th')).map(function(x){return (x.textContent||'').toLowerCase();}).join('|');
+      if(heads.indexOf('employee')<0 && heads.indexOf('name')<0 && heads.indexOf('staff')<0) return;
+      if(heads.indexOf('amount')>=0 && heads.indexOf('basic')<0 && heads.indexOf('bank')<0) return; // payroll row, skip
+      tr.dataset._t18b='1';
+      var td=document.createElement('td');
+      td.innerHTML='<button style="padding:5px 9px;background:#92400e;color:#fff;border:0;border-radius:5px;cursor:pointer;font-size:11px;font-weight:700" title="Salary Sheet">📋 Salary Sheet</button>';
+      td.querySelector('button').onclick=function(ev){ev.stopPropagation();var m=prompt('Salary Month (YYYY-MM):',monthNow());if(!m)return;(window.openSalarySheet||function(){alert('Sheet engine missing')})(m);};
+      tr.appendChild(td);
+    });
+  }
+  function tick(){try{ensurePayrollBar();addEmpButtons();}catch(e){}}
+  setInterval(tick,800);
+  document.addEventListener('DOMContentLoaded',tick);
+  setTimeout(tick,500);
+})();
+</script>
+
 </body></html>
